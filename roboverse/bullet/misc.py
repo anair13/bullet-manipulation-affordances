@@ -1,7 +1,11 @@
 import os
 import random
 import numpy as np
+ros_path = '/opt/ros/kinetic/lib/python2.7/dist-packages'
+if ros_path in os.sys.path:
+    os.sys.path.remove(ros_path)
 import cv2
+os.sys.path.append(ros_path)
 import pdb
 
 import pybullet as p
@@ -21,9 +25,10 @@ def connect():
 
     p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 0)
     p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1)
-    p.resetDebugVisualizerCamera(0.8, 90, -20, [0.75, -.2, 0])
+
+    p.resetDebugVisualizerCamera(cameraDistance=0.3, cameraYaw=90, cameraPitch=-15, cameraTargetPosition=[.7, 0, -0.3])
+    #p.resetDebugVisualizerCamera(0.8, 90, -20, [0.75, -.2, 0])
     p.setAdditionalSearchPath(pdata.getDataPath())
-    # p.setAdditionalSearchPath('roboverse/envs/assets/')
 
 def connect_headless(gui=False):
     if gui:
@@ -33,7 +38,8 @@ def connect_headless(gui=False):
     else:
         p.connect(p.DIRECT)
 
-    p.resetDebugVisualizerCamera(0.8, 90, -20, [0.75, -.2, 0])
+    p.resetDebugVisualizerCamera(cameraDistance=0.3, cameraYaw=90, cameraPitch=-15, cameraTargetPosition=[.7, 0, -0.3])
+    #p.resetDebugVisualizerCamera(0.8, 90, -20, [0.75, -.2, 0])
     p.setAdditionalSearchPath(pdata.getDataPath())
 
 
@@ -60,16 +66,21 @@ def reset():
     p.resetSimulation()
 
 def load_urdf(filepath, pos=[0, 0, 0], quat=[0, 0, 0, 1], scale=1, rgba=None):
+    #rgba = list(np.random.choice(range(256), size=3) / 255.0) + [1]
+
     body = p.loadURDF(filepath, globalScaling=scale)
     p.resetBasePositionAndOrientation(body, pos, quat)
     if rgba is not None:
         p.changeVisualShape(body, -1, rgbaColor=rgba)
+
     return body
 
 def load_obj(filepathcollision, filepathvisual, pos=[0, 0, 0], quat=[0, 0, 0, 1], scale=1, rgba=None):
     collisionid= p.createCollisionShape(p.GEOM_MESH, fileName=filepathcollision, meshScale=scale * np.array([1, 1, 1]))
     visualid = p.createVisualShape(p.GEOM_MESH, fileName=filepathvisual, meshScale=scale * np.array([1, 1, 1]))
     body = p.createMultiBody(0.05, collisionid, visualid)
+    if rgba is not None:
+        p.changeVisualShape(body, -1, rgbaColor=rgba)
     p.resetBasePositionAndOrientation(body, pos, quat)
     return body
 
@@ -113,6 +124,9 @@ def render(height, width, view_matrix, projection_matrix,
                                  lightDirection=light_direction,
                                  renderer=renderer)
     _, _, img, depth, segmentation = img_tuple
+    # import ipdb; ipdb.set_trace()
+    # Here, if I do len(img), I get 9216.
+    # img = np.reshape(np.array(img), (48, 48, 4))
     img = img[:,:,:-1]
     if gaussian_width > 0:
         img = cv2.GaussianBlur(img, (gaussian_width, gaussian_width), 0)

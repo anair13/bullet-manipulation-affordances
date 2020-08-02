@@ -6,11 +6,11 @@ from PIL import Image
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("data_save_directory", type=str)
-parser.add_argument("--num_trajectories", type=int, default=2000)
+parser.add_argument("--data_save_directory", type=str)
+parser.add_argument("--num_trajectories", type=int, default=1000)
 parser.add_argument("--num_timesteps", type=int, default=50)
 parser.add_argument("--video_save_frequency", type=int,
-                    default=0, help="Set to zero for no video saving")
+                    default=1000, help="Set to zero for no video saving")
 parser.add_argument("--gui", dest="gui", action="store_true", default=False)
 
 args = parser.parse_args()
@@ -41,7 +41,7 @@ pool = roboverse.utils.DemoPool()
 for j in tqdm(range(args.num_trajectories)):
     env.reset()
     target_pos = env.get_object_midpoint(object_name)
-    target_pos += np.random.uniform(low=-0.05, high=0.05, size=(3,))
+    target_pos += np.random.uniform(low=-0.01, high=0.01, size=(3,))
     # the object is initialized above the table, so let's compensate for it
     target_pos[2] += -0.05
     images = []

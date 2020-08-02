@@ -13,12 +13,12 @@ class SawyerBaseEnv(gym.Env, Serializable):
                  gui=False,
                  action_scale=.2,
                  action_repeat=10,
-                 timestep=1./120,
+                 timestep=1./240, #1./240
                  solver_iterations=150,
                  gripper_bounds=[-1,1],
-                 pos_init=[0.5, 0, 0],
-                 pos_high=[1,.4,.25],
-                 pos_low=[.4,-.6,-.36],
+                 pos_init=[0.6, 0.0, -0.2], #[0.5, 0, 0]
+                 pos_low=[0.6,-0.2,-.36], #[.4,-.6,-.36]
+                 pos_high=[0.8,0.2,-0.2], #[1,.4,.25]
                  max_force=1000.,
                  visualize=True,
                  ):
@@ -36,8 +36,10 @@ class SawyerBaseEnv(gym.Env, Serializable):
         self._visualize = visualize
         self._id = 'SawyerBaseEnv'
 
+        self.theta = bullet.deg_to_quat([180, 0, 0])
+
         bullet.connect_headless(self._gui)
-        self.set_reset_hook()
+        # self.set_reset_hook()
         self._set_spaces()
 
         self._img_dim = img_dim
@@ -65,8 +67,8 @@ class SawyerBaseEnv(gym.Env, Serializable):
                 )
                 raise RuntimeError(message)
 
-    def get_constructor(self):
-        return lambda: self.__class__(*self.args_, **self.kwargs_)
+    # def get_constructor(self):
+    #     return lambda: self.__class__(*self.args_, **self.kwargs_)
 
     def _set_spaces(self):
         act_dim = 4
@@ -83,27 +85,21 @@ class SawyerBaseEnv(gym.Env, Serializable):
     def reset(self):
 
         bullet.reset()
+        bullet.setup_headless(self._timestep, solver_iterations=self._solver_iterations)
         self._load_meshes()
-
-        # Allow the objects to settle down after they are dropped in sim
-        for _ in range(50):
-            bullet.step()
-
-        self._end_effector = bullet.get_index_by_attribute(
-            self._sawyer, 'link_name', 'gripper_site')
         self._format_state_query()
 
-        bullet.setup_headless(self._timestep, solver_iterations=self._solver_iterations)
 
         self._prev_pos = np.array(self._pos_init)
-        self.theta = bullet.deg_to_quat([180, 0, 0])
         bullet.position_control(self._sawyer, self._end_effector, self._prev_pos, self.theta)
-        self._reset_hook(self)
+        # self._reset_hook(self)
+        for _ in range(3):
+            self.step([0.,0.,0.,-1])
         return self.get_observation()
 
-    def set_reset_hook(self, fn=lambda env: None):
-        self._reset_hook = fn
-    
+    # def set_reset_hook(self, fn=lambda env: None):
+    #     self._reset_hook = fn
+
     def open_gripper(self, act_repeat=10):
         delta_pos = [0,0,0]
         gripper = 0
@@ -130,6 +126,9 @@ class SawyerBaseEnv(gym.Env, Serializable):
         self._workspace = bullet.Sensor(self._sawyer,
             xyz_min=self._pos_low, xyz_max=self._pos_high,
             visualize=False, rgba=[0,1,0,.1])
+        self._end_effector = bullet.get_index_by_attribute(
+            self._sawyer, 'link_name', 'gripper_site')
+
 
     def _format_state_query(self):
         ## position and orientation of body root
@@ -172,14 +171,15 @@ class SawyerBaseEnv(gym.Env, Serializable):
         for _ in range(self._action_repeat):
             bullet.sawyer_position_ik(
                 self._sawyer, self._end_effector, 
-                pos, self.theta, 
+                pos, theta,
                 gripper, gripper_bounds=self._gripper_bounds, 
                 discrete_gripper=False, max_force=self._max_force
             )
             bullet.step_ik()
 
     def render(self, mode='rgb_array'):
-        img, depth, segmentation = bullet.render(self._img_dim, self._img_dim, self._view_matrix, self._projection_matrix)
+        img, depth, segmentation = bullet.render(
+            self._img_dim, self._img_dim, self._view_matrix, self._projection_matrix)
         return img
 
     def get_termination(self, observation):
