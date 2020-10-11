@@ -102,6 +102,16 @@ SEQUENTIAL_ENVIRONMENT_SPECS = (
                    }
     },
     {
+        'id': 'SawyerRigMultiobjDrawer-v0',
+        'entry_point': ('roboverse.envs.sawyer_rig_multiobj_drawer_v0:SawyerRigMultiobjDrawerV0'),
+        'kwargs': {'max_force': 100,
+                   'action_scale': 0.05,
+                   'pos_low': [0.5,-0.25,-.36],
+                   'pos_high': [0.9,0.25,-0.1],
+                   'pos_init': [0.6, -0.15, -0.2],
+                   }
+    },
+    {
         'id': 'SawyerDistractorReaching-v0',
         'entry_point': ('roboverse.envs.disco.sawyer_distractor_reaching_v0:SawyerDistractorReachingV0'),
         'kwargs': {'max_force': 100,

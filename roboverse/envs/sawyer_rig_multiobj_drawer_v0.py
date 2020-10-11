@@ -4,32 +4,37 @@ import pybullet as p
 from gym.spaces import Box, Dict
 from collections import OrderedDict
 from roboverse.envs.sawyer_base import SawyerBaseEnv
-from roboverse.bullet.misc import load_obj, deg_to_quat, quat_to_deg, bbox_intersecting
+from roboverse.bullet.misc import load_obj, deg_to_quat, quat_to_deg, get_bbox
 from bullet_objects import loader, metadata
 import os.path as osp
 import importlib.util
 import random
 import pickle
 import gym
+from roboverse.bullet.drawer_utils import *
+from roboverse.bullet.button_utils import *
 
 test_set = ['mug', 'long_sofa', 'camera', 'grill_trash_can', 'beer_bottle']
 
-class SawyerRigMultiobjV0(SawyerBaseEnv):
+quat_dict={'mug': [0, -1, 0, 1],'long_sofa': [0, 0, 0, 1],'camera': [-1, 0, 0, 0],
+        'grill_trash_can': [0, 0, 0, 1],'beer_bottle': [0, 0, 1, 1]}
+
+class SawyerRigMultiobjDrawerV0(SawyerBaseEnv):
 
     def __init__(self,
                  goal_pos=(0.75, 0.2, -0.1),
                  reward_type='shaped',
                  reward_min=-2.5,
-                 randomize=True,
+                 randomize=False,
                  observation_mode='state',
                  obs_img_dim=48,
                  success_threshold=0.08,
                  transpose_image=False,
                  invisible_robot=False,
-                 object_subset='all',
+                 object_subset='test',
                  use_bounding_box=True,
                  random_color_p=0.5,
-                 quat_dict={},
+                 quat_dict=quat_dict,
                  task='goal_reaching',
                  DoF=3,
                  *args,
@@ -74,18 +79,18 @@ class SawyerRigMultiobjV0(SawyerBaseEnv):
 
         self.object_dict, self.scaling = self.get_object_info()
         self.curr_object = None
-        self._object_position_low = (.65, -0.15, -.3)
-        self._object_position_high = (.75, 0.15, -.3)
-        self._goal_low = np.array([0.65,-0.15,-.34])
-        self._goal_high = np.array([0.75,0.15,-0.22])
-        self._fixed_object_position = np.array([.7, 0.0, -.3])
+        self._object_position_low = (0.55,-0.2,-.36)
+        self._object_position_high = (0.85,0.2,-0.15)
+        self._goal_low = np.array([0.55,-0.2,-.11])
+        self._goal_high = np.array([0.85,0.2,-0.11])
+        self._fixed_object_position = np.array([.8, -0.175, -.25])
         self.start_obj_ind = 4 if (self.DoF == 3) else 8
         self.default_theta = bullet.deg_to_quat([180, 0, 0])
         self._success_threshold = success_threshold
         self.obs_img_dim = obs_img_dim #+.15
         self._view_matrix_obs = bullet.get_view_matrix(
-            target_pos=[.7, 0, -0.3], distance=0.3,
-            yaw=90, pitch=-15, roll=0, up_axis_index=2)
+            target_pos=[.7, -0.05, -0.3], distance=0.5,
+            yaw=90, pitch=-40, roll=0, up_axis_index=2)
         self._projection_matrix_obs = bullet.get_projection_matrix(
             self.obs_img_dim, self.obs_img_dim)
         self.dt = 0.1
@@ -118,7 +123,7 @@ class SawyerRigMultiobjV0(SawyerBaseEnv):
         act_high = np.ones(act_dim) * act_bound
         self.action_space = gym.spaces.Box(-act_high, act_high)
 
-        observation_dim = 11
+        observation_dim = 13
         if self.DoF > 3:
             # Add wrist theta
             observation_dim += 4
@@ -137,23 +142,32 @@ class SawyerRigMultiobjV0(SawyerBaseEnv):
         ])
 
     def _load_table(self):
-        if self._invisible_robot:
-            self._sawyer = bullet.objects.sawyer_invisible()
-        else:
-            self._sawyer = bullet.objects.sawyer_hand_visual_only()
-        self._table = bullet.objects.table()
         self._objects = {}
         self._sensors = {}
+
+        self._sawyer = bullet.objects.drawer_sawyer()
+        self._table = bullet.objects.table()
+        self._top_drawer = bullet.objects.drawer()
+        self._bottom_drawer = bullet.objects.drawer_no_handle()
+
+        self._objects['button'] = bullet.objects.button()
+        self._objects['lego'] = bullet.objects.drawer_lego()
+        self.tray = bullet.objects.tray()
+        self.init_button_height = get_button_cylinder_pos(self._objects['button'])[2]
+        self.drawer_opened = False
+
         self._workspace = bullet.Sensor(self._sawyer,
             xyz_min=self._pos_low, xyz_max=self._pos_high,
             visualize=False, rgba=[0,1,0,.1])
         self._end_effector = bullet.get_index_by_attribute(
             self._sawyer, 'link_name', 'gripper_site')
 
+
     def sample_object_location(self):
         if self._randomize:
             return np.random.uniform(
-                low=self._object_position_low, high=self._object_position_high)
+                low=self._object_position_low,
+                high=self._object_position_high)
         return self._fixed_object_position
 
     def sample_object_color(self):
@@ -165,31 +179,6 @@ class SawyerRigMultiobjV0(SawyerBaseEnv):
         if object_name in self.quat_dict:
             return self.quat_dict[self.curr_object]
         return deg_to_quat(np.random.randint(0, 360, size=3))
-
-    def _set_positions(self, pos):
-        bullet.reset()
-        bullet.setup_headless(self._timestep, solver_iterations=self._solver_iterations)
-        self._load_table()
-
-        hand_pos = pos[:3]
-        gripper = pos[self.start_obj_ind - 1]
-        object_pos = pos[self.start_obj_ind:self.start_obj_ind + 3]
-        object_quat = pos[self.start_obj_ind + 4:self.start_obj_ind + 7]
-        self.add_object(change_object=False, object_position=object_pos, quat=object_quat)
-
-        if self.DoF > 3:
-            hand_theta = pos[3:7]
-        else:
-            hand_theta = self.default_theta
-
-        self._format_state_query()
-        self._prev_pos = np.array(hand_pos)
-
-        bullet.position_control(self._sawyer, self._end_effector, self._prev_pos, self.default_theta)
-        action = np.array([0 for i in range(self.DoF)] + [gripper])
-        
-        for _ in range(10):
-            self.step(action)
 
     def add_object(self, change_object=True, object_position=None, quat=None):
         # Pick object if necessary and save information
@@ -206,14 +195,12 @@ class SawyerRigMultiobjV0(SawyerBaseEnv):
             quat = self.sample_quat(self.curr_object)
 
         # Spawn object above table
-        self._objects = {
-            'obj': loader.load_shapenet_object(
+        self._objects['obj'] = loader.load_shapenet_object(
                 self.curr_id,
                 self.scaling,
                 object_position,
                 quat=quat,
                 rgba=self.curr_color)
-            }
 
         # Allow the objects to land softly in low gravity
         p.setGravity(0, 0, -1)
@@ -252,15 +239,34 @@ class SawyerRigMultiobjV0(SawyerBaseEnv):
                 raise RuntimeError('Unrecognized action: {}'.format(action))
             return np.array(delta_pos), np.array(delta_angle), gripper
 
-    def enforce_bounding_box(self):
-        object_pos = bullet.get_body_info(self._objects['obj'])['pos']
-        low, high = np.array(self._pos_low), np.array(self._pos_high)
-        #low, high = low - 0.15, high + 0.15
-        low[2], high[2] = low[2] - 0.15, high[2] + 0.15
-        contained = (object_pos > low).all() and (object_pos < high).all()
+    def button_pressed(self):
+        curr_height = get_button_cylinder_pos(self._objects['button'])[2]
+        pressed = (self.init_button_height - curr_height) > 0.01
+        if pressed and not self.drawer_opened:
+            self.drawer_opened = True
+            return True
+        return False
 
-        if not contained:
-            self.reset(change_object=False)
+    def check_obj_bounding_box(self, obj):
+        object_pos = bullet.get_body_info(obj)['pos']
+        low, high = np.array(self._pos_low), np.array(self._pos_high)
+        adjustment = np.array([0.025, 0.025, 0.15])
+        low, high = low - adjustment, high + adjustment
+        contained = (object_pos > low).all() and (object_pos < high).all()
+        return contained
+
+    def enforce_bounding_box(self):
+        contained_obj = self.check_obj_bounding_box(self._objects['obj'])
+        contained_lego = self.check_obj_bounding_box(self._objects['lego'])
+
+        if not contained_obj:
+            p.removeBody(self._objects['obj'])
+            self.add_object(change_object=False)
+
+        if not contained_lego:
+            p.removeBody(self._objects['lego'])
+            obj_pos = self.sample_object_location()
+            self._objects['lego'] = bullet.objects.drawer_lego(pos=obj_pos)
 
     def step(self, *action):
         # Get positional information
@@ -283,12 +289,15 @@ class SawyerRigMultiobjV0(SawyerBaseEnv):
             delta_pos, delta_angle, gripper = self._format_action(*action)
             angle += delta_angle * self._ddeg_scale
 
-
         # Update position and theta
         pos += delta_pos * self._action_scale
         pos = np.clip(pos, self._pos_low, self._pos_high)
         theta = deg_to_quat(angle)
         self._simulate(pos, theta, gripper)
+
+        # Open box if button is pressed
+        if self.button_pressed():
+            open_drawer(self._bottom_drawer)
 
         # Reset if bounding box is violated
         if self.use_bounding_box:
@@ -395,6 +404,17 @@ class SawyerRigMultiobjV0(SawyerBaseEnv):
         elif self.task == 'pickup':
             return info['picked_up'] - 1
 
+    def sample_goals(self):
+        self.obj_goal = np.random.uniform(low=self._goal_low, high=self._goal_high)
+        self.lego_goal = np.random.uniform(low=self._goal_low, high=self._goal_high)
+        self.hand_goal = np.random.uniform(low=self._goal_low, high=self._goal_high)
+
+        ld_pos = self.get_object_pos('bottom_drawer') 
+        self.bd_goal = np.random.uniform(low=ld_pos, high=ld_pos + np.array([0.155, 0, 0]))
+
+        td_pos = self.get_object_pos('drawer_handle') 
+        self.td_goal = np.random.uniform(low=(td_pos - np.array([0, 0.18, 0])), high=td_pos)
+
     def reset(self, change_object=True):
         # Load Enviorment
         bullet.reset()
@@ -406,6 +426,8 @@ class SawyerRigMultiobjV0(SawyerBaseEnv):
         # Sample and load starting positions
         init_pos = np.array(self._pos_init)
         self.goal_pos = np.random.uniform(low=self._goal_low, high=self._goal_high)
+        self.sample_goals()
+
         bullet.position_control(self._sawyer, self._end_effector, init_pos, self.default_theta)
 
         # Move to starting positions
@@ -438,14 +460,17 @@ class SawyerRigMultiobjV0(SawyerBaseEnv):
         elif self.task == 'pickup':
             return self.compute_reward_pu(obs, actions, next_obs, contexts)
 
-    def get_object_deg(self):
-        object_info = bullet.get_body_info(self._objects['obj'],
-                                           quat_to_deg=True)
-        return object_info['theta']
-
-    def get_hand_deg(self):
-        return bullet.get_link_state(self._sawyer, self._end_effector,
-            'theta', quat_to_deg=True)
+    def get_object_pos(self, obj_name):
+        if obj_name in ['obj', 'lego']:
+            return np.array(bullet.get_body_info(self._objects[obj_name], quat_to_deg=False)['pos'])
+        elif obj_name == 'button':
+            return np.array(get_button_cylinder_pos(self._objects['button']))
+        elif obj_name == 'bottom_drawer':
+            return np.array(get_drawer_bottom_pos(self._bottom_drawer))
+        elif obj_name == 'drawer_handle':
+            return np.array(get_drawer_handle_pos(self._top_drawer))
+        else:
+            return 1/0
 
     def get_observation(self):
         left_tip_pos = bullet.get_link_state(
@@ -466,20 +491,30 @@ class SawyerRigMultiobjV0(SawyerBaseEnv):
         object_pos = object_info['pos']
         object_theta = object_info['theta']
 
+        lego_info = bullet.get_body_info(self._objects['obj'],
+                                           quat_to_deg=False)
+        lego_pos = lego_info['pos']
+
+        bottom_drawer_pos = [get_drawer_bottom_pos(self._bottom_drawer)[0]]
+        top_drawer_pos = [get_drawer_handle_pos(self._top_drawer)[1]]
+        button_height = [get_button_cylinder_pos(self._objects['button'])[2]]
+
         if self.DoF > 3:
+            #(hand_pos, hand_theta, gripper, obj_pos, lego_pos, bd_pos, td_pos, b_pos)
             observation = np.concatenate((
                 end_effector_pos, hand_theta, gripper_tips_distance,
-                object_pos, object_theta))
+                object_pos, lego_pos, bottom_drawer_pos, top_drawer_pos, button_height))
             goal_pos = np.concatenate((
                 self.goal_pos, hand_theta, gripper_tips_distance,
-                self.goal_pos, object_theta))
+                self.goal_pos, self.goal_pos, self.goal_pos))
         else:
+            #(hand_pos, gripper, obj_pos, lego_pos, bd_pos, td_pos, b_pos)
             observation = np.concatenate((
-                end_effector_pos, gripper_tips_distance,
-                object_pos, object_theta))
+                end_effector_pos, gripper_tips_distance, object_pos,
+                lego_pos, bottom_drawer_pos, top_drawer_pos, button_height))
             goal_pos = np.concatenate((
-                end_effector_pos, gripper_tips_distance,
-                self.goal_pos, object_theta))
+                self.goal_pos, gripper_tips_distance, self.goal_pos,
+                self.goal_pos, self.goal_pos))
 
         obs_dict = dict(
             observation=observation,

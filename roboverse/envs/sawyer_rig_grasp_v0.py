@@ -39,10 +39,11 @@ class SawyerRigGraspV0Env(SawyerBaseEnv):
         self._invisible_robot = invisible_robot
         self.image_shape = (obs_img_dim, obs_img_dim)
         self.image_length = np.prod(self.image_shape) * 3  # image has 3 channels
-
-        self._object_position_low = (.65, -0.1, -.36)
-        self._object_position_high = (.75, 0.1, -.36)
+        
+        self._object_position_low = (.65, -0.1, -.3)
+        self._object_position_high = (.75, 0.1, -.3)
         self._fixed_object_position = (.75, 0.2, -.36)
+        
         self._success_threshold = success_threshold
         self.obs_img_dim = obs_img_dim #+.15
         self._view_matrix_obs = bullet.get_view_matrix(

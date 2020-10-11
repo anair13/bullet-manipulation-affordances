@@ -26,7 +26,7 @@ def connect():
     p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 0)
     p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1)
 
-    p.resetDebugVisualizerCamera(cameraDistance=0.3, cameraYaw=90, cameraPitch=-15, cameraTargetPosition=[.7, 0, -0.3])
+    p.resetDebugVisualizerCamera(cameraDistance=1, cameraYaw=90, cameraPitch=-40, cameraTargetPosition=[.7, 0, -0.3])
     #p.resetDebugVisualizerCamera(0.8, 90, -20, [0.75, -.2, 0])
     p.setAdditionalSearchPath(pdata.getDataPath())
 
@@ -38,7 +38,7 @@ def connect_headless(gui=False):
     else:
         p.connect(p.DIRECT)
 
-    p.resetDebugVisualizerCamera(cameraDistance=0.3, cameraYaw=90, cameraPitch=-15, cameraTargetPosition=[.7, 0, -0.3])
+    p.resetDebugVisualizerCamera(cameraDistance=1, cameraYaw=90, cameraPitch=-40, cameraTargetPosition=[.7, 0, -0.3])
     #p.resetDebugVisualizerCamera(0.8, 90, -20, [0.75, -.2, 0])
     p.setAdditionalSearchPath(pdata.getDataPath())
 
@@ -66,8 +66,6 @@ def reset():
     p.resetSimulation()
 
 def load_urdf(filepath, pos=[0, 0, 0], quat=[0, 0, 0, 1], scale=1, rgba=None):
-    #rgba = list(np.random.choice(range(256), size=3) / 255.0) + [1]
-
     body = p.loadURDF(filepath, globalScaling=scale)
     p.resetBasePositionAndOrientation(body, pos, quat)
     if rgba is not None:

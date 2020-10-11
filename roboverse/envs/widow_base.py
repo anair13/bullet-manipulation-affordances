@@ -5,6 +5,11 @@ import pdb
 import roboverse.bullet as bullet
 from roboverse.envs.serializable import Serializable
 
+WIDOW200_SERIES_NAMES = ['WidowX200', 'Widow200', 'Widow250', 'Widow250s']
+
+def is_widow200_series_env(env_name):
+    return any([widow200_name in env_name
+        for widow200_name in WIDOW200_SERIES_NAMES])
 
 class WidowBaseEnv(gym.Env, Serializable):
     def __init__(self,
@@ -15,19 +20,26 @@ class WidowBaseEnv(gym.Env, Serializable):
                  timestep=1. / 120,
                  solver_iterations=150,
                  gripper_bounds=[-1, 1],
-                 pos_init=[0.5, 0, 0],
-                 pos_high=[1, .4, .25],
+                 pos_init=[0.5, 0, -0.2],
+                 pos_high=[1, .4, -0.2],
                  pos_low=[.4, -.6, -.36],
                  max_force=1000.,
                  visualize=True,
                  downwards=False,
+                 camera_target_pos=[.95, -0.05, -0.2],
+                 camera_distance=0.10,
+                 camera_pitch=-40,
+                 use_positive_rew=False,
+                 use_pos_neg_rew=False,
+                 env_name="Widow200",
                  ):
 
         self._id = 'WidowBaseEnv'
         self._robot_name = 'widowx'
+        self._env_name = env_name
         self._gripper_joint_name = (
         'gripper_prismatic_joint_1', 'gripper_prismatic_joint_2')
-        if self._env_name == 'WidowX200GraspEnv':
+        if is_widow200_series_env(self._env_name):
             self._gripper_joint_name = ('left_finger', 'right_finger')
 
         self._gripper_range = range(7, 9)
@@ -35,8 +47,10 @@ class WidowBaseEnv(gym.Env, Serializable):
 
         self._end_effector_link_name = 'gripper_rail_link'
 
-        if self._env_name == 'WidowX200GraspEnv':
+        if 'WidowX200' in self._env_name or 'Widow200' in self._env_name:
             self._end_effector_link_name = 'wx200/gripper_bar_link'
+        elif 'Widow250' in self._env_name:
+            self._end_effector_link_name = '/gripper_bar_link'
 
         self.obs_img_dim = img_dim
         self.image_shape = (img_dim, img_dim)
@@ -54,12 +68,20 @@ class WidowBaseEnv(gym.Env, Serializable):
         self._max_force = max_force
         self._visualize = visualize
         self._img_dim = img_dim
+        self.camera_target_pos = camera_target_pos
+        self.camera_distance = camera_distance
+        self.camera_pitch = camera_pitch
+
+        self.use_positive_rew = use_positive_rew
+        self.use_pos_neg_rew = use_pos_neg_rew
+        assert int(use_positive_rew + use_pos_neg_rew) <= 1
 
         bullet.connect_headless(self._gui)
         self._load_meshes()
 
-        view_matrix_args = dict(target_pos=[.95, -0.05, -0.2], distance=0.10,
-                                yaw=90, pitch=-40, roll=0, up_axis_index=2)
+        view_matrix_args = dict(target_pos=self.camera_target_pos,
+                                distance=self.camera_distance, yaw=90,
+                                pitch=self.camera_pitch, roll=0, up_axis_index=2)
         self._view_matrix = bullet.get_view_matrix(
             **view_matrix_args)
         self._projection_matrix = bullet.get_projection_matrix(
@@ -81,9 +103,12 @@ class WidowBaseEnv(gym.Env, Serializable):
         if self.downwards:
             self._robot_id = bullet.objects.widow_downwards()
         else:
-            # print("self._env_name", self._env_name)
-            if self._env_name in ['WidowX200GraspEnv', 'Widow200GraspV2Env']:
+            if 'WidowX200' in self._env_name or 'Widow200' in self._env_name:
                 self._robot_id = bullet.objects.widowx_200()
+            elif 'Widow250s' in self._env_name:
+                self._robot_id = bullet.objects.widowx_250s()
+            elif 'Widow250' in self._env_name:
+                self._robot_id = bullet.objects.widowx_250()
             else:
                 self._robot_id = bullet.objects.widow()
         self._table = bullet.objects.table()
@@ -92,6 +117,14 @@ class WidowBaseEnv(gym.Env, Serializable):
                                         xyz_min=self._pos_low,
                                         xyz_max=self._pos_high,
                                         visualize=False, rgba=[0, 1, 0, .1])
+
+    def adjust_rew_if_use_positive(self, reward):
+        if self.use_positive_rew:
+            return 6.0 * reward + 4.0
+        elif self.use_pos_neg_rew:
+            return 6.0 * reward - 3.0
+        else:
+            return reward
 
     def get_params(self):
         labels = ['_action_scale', '_action_repeat',
@@ -130,15 +163,14 @@ class WidowBaseEnv(gym.Env, Serializable):
     def reset(self):
 
         bullet.reset()
-        self._load_meshes()
-        # Allow the objects to settle down after they are dropped in sim
-        for _ in range(50):
-            bullet.step()
-
-        self._format_state_query()
-
         bullet.setup_headless(self._timestep,
                               solver_iterations=self._solver_iterations)
+        self._load_meshes()
+        # Allow the objects to settle down after they are dropped in sim
+        # for _ in range(50):
+        #     bullet.step()
+
+        self._format_state_query()
 
         self._prev_pos = np.array(self._pos_init)
         # self.theta = bullet.deg_to_quat([180, 0, 0])
@@ -249,5 +281,3 @@ class WidowBaseEnv(gym.Env, Serializable):
 
     def convert_to_active_observation(self, obs):
         return obs
-
-

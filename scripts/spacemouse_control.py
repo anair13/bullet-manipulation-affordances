@@ -4,22 +4,25 @@ import numpy as np
 import pickle as pkl
 from tqdm import tqdm
 from roboverse.utils.renderer import EnvRenderer, InsertImageEnv
-from IPython.display import clear_output
+#from IPython.display import clear_output
 from roboverse.bullet.misc import load_obj, quat_to_deg, draw_bbox
 import time
 plt.ion()
 
+quat_dict={'mug': [0, 0, 0, 1], 'long_sofa': [0, 0, 0, 1], 'camera': [-1, 0, 0, 0], 'grill_trash_can': [0, 0, 0, 1], 'beer_bottle': [0, 0, 1, 1]}
+
 # Variables to define!
 DoF = 3 # (3, 4, 6)
-num_timesteps = 50
-object_subset = 'easy' # (train, test, easy)
-task = 'gr_hand' # (pickup, goal_reaching)
+num_timesteps = 500
+object_subset = ['mug'] # (all, train, test)
+task = 'goal_reaching' # (pickup, goal_reaching)
+randomize = True
 # Variables to define!
 
 # Set Up Enviorment
 spacemouse = rv.devices.SpaceMouse(DoF=DoF)
-state_env = rv.make('SawyerDistractorReaching-v0', gui=True, DoF=DoF, object_subset=object_subset, task=task, visualize=False)
-#state_env = rv.make('SawyerRigMultiobj-v0', gui=True, DoF=DoF, object_subset=object_subset, task=task, visualize=False)
+state_env = rv.make('SawyerRigMultiobjDrawer-v0', gui=True, DoF=DoF, object_subset=object_subset,
+		quat_dict={}, task=task, randomize=randomize, visualize=False, random_color_p=0)
 imsize = state_env.obs_img_dim
 imlength = imsize * imsize * 3
 
@@ -182,46 +185,58 @@ def rollout_trajectory():
 
 	env.reset()
 	env_image, traj_images = get_recon_image(env), []
+
 	for j in tqdm(range(num_timesteps)):
-		#render()
 		traj_images.append(get_recon_image(env))		
+
+		ee_pos = env.get_end_effector_pos()
+		target_pos = env.get_object_midpoint('obj')
+		achieved_goal = np.linalg.norm(env.goal_pos - target_pos) < 0.05
+		aligned = np.linalg.norm(target_pos[:2] - ee_pos[:2]) < 0.04
+		aligned_goal = np.linalg.norm(env.goal_pos[:2] - target_pos[:2]) < 0.04
+		enclosed = np.linalg.norm(target_pos[2] - ee_pos[2]) < 0.025
+		above = ee_pos[2] > -0.3
+
+		if not aligned and not above:
+			print('Stage 1')
+			action = (target_pos - ee_pos) * 3.0
+			action[2] = 1
+			grip = -1.
+		elif not aligned:
+			print('Stage 2')
+			action = (target_pos - ee_pos) * 3.0
+			action[2] = 0.
+			action *= 3.0
+			grip = -1.
+		elif aligned and not enclosed:
+			print('Stage 3')
+			action = target_pos - ee_pos
+			action[2] -= 0.03
+			action *= 3.0
+			action[2] *= 2.0
+			grip = -1.
+		elif enclosed and grip < 1:
+			print('Stage 4')
+			action = target_pos - ee_pos
+			action[2] -= 0.03
+			action *= 3.0
+			action[2] *= 2.0
+			grip += 0.5
+		else:
+			print('Stage 5')
+			action = env.goal_pos - ee_pos
+			action *= 3.0
+			grip = 1.
+
+		action = np.append(action, [grip])
+		action = np.random.normal(action, 0.1)
+		action = np.clip(action, a_min=-1, a_max=1)
+
 		action = spacemouse.get_action()
-
-		# ee_pos = np.append(env.get_end_effector_pos(), quat_to_deg(env.theta)[2] / 180)
-		# target_pos = np.append(env.get_object_midpoint('obj'), env.get_object_deg()[2] / 180)
-		# # hand_deg, obj_deg = env.get_hand_deg(), env.get_object_deg()
-		# # ee_pos = np.append(env.get_end_effector_pos(), hand_deg[2] / 180)
-		# # target_pos = np.append(env.get_object_midpoint('obj'), obj_deg[2] / 180)
-		# target_pos[1] += 0.0065
-		# target_pos[2] -= 0.01
-
-		# if j < 20:
-		# 	action = target_pos - ee_pos
-		# 	action[2] = 0.
-		# 	action *= 3.0
-		# 	grip = -1.
-		# elif j < 35:
-		# 	action = target_pos - ee_pos
-		# 	action *= 3.0
-		# 	action[2] *= 2.0
-		# 	grip = -1.
-		# elif j < 42:
-		# 	#action = target_pos - ee_pos
-		# 	action = np.zeros((4,))
-		# 	grip = 0.8
-		# else:
-		# 	action = np.zeros((4,))
-		# 	action[2] = 1.0
-		# 	action = np.random.normal(action, 0.25)
-		# 	grip = 1.
-
-		# action = np.append(action, [grip])
-		# action = np.random.normal(action, 0.01)
-		# action = np.clip(action, a_min=-1, a_max=1)
-
 
 		observation = env.get_observation()
 		next_observation, reward, done, info = env.step(action)
+		print('Reward: ', reward)
 
 		trajectory['observations'].append(observation)
 		trajectory['actions'][j, :] = action

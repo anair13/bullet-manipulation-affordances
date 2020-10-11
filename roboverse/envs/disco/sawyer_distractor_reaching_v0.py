@@ -170,29 +170,6 @@ class SawyerDistractorReachingV0(SawyerBaseEnv):
         for _ in range(10):
             self.step(action)
 
-    # def _set_positions(self, pos):
-    #     bullet.reset()
-    #     bullet.setup_headless(self._timestep, solver_iterations=self._solver_iterations)
-    #     self._load_table()
-
-    #     for i in range(self.num_objects):
-    #         start_ind = (i + 1) * 7 + 1
-    #         object_pos = pos[start_ind:start_ind + 3]
-    #         #object_pos[2] += 0.05 #Avoid collisions
-    #         object_quat = pos[start_ind + 3:start_ind + 7]
-    #         self.add_object_i(i, object_position=object_pos, quat=list(object_quat))
-
-    #     self._format_state_query()
-    #     hand_pos, hand_theta, gripper = pos[:3], pos[3:7], pos[7]
-    #     self._prev_pos = np.array(hand_pos)
-
-    #     low, high = self._pos_low[:], self._pos_high[:]
-    #     bullet.position_control(self._sawyer, self._end_effector, self._prev_pos, hand_theta)
-
-    #     action = np.array([0 for i in range(self.DoF)] + [gripper])
-    #     for _ in range(10):
-    #         self.step(action)
-
     def add_object_i(self, i, object_position=None, quat=[0, 0, 0, 1]):
         # Generate object random position
         if object_position is None:

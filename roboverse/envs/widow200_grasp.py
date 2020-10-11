@@ -6,7 +6,7 @@ from roboverse.utils.shapenet_utils import load_single_object
 
 class Widow200GraspEnv(WidowBaseEnv):
     def __init__(self, goal_pos=(.7, 0.15, -0.20), *args, **kwargs):
-        self._env_name = 'WidowX200GraspEnv'
+        self._env_name = 'Widow200GraspEnv'
         kwargs['downwards'] = False
         super().__init__(*args, **kwargs)
         self._goal_pos = goal_pos
@@ -16,7 +16,7 @@ class Widow200GraspEnv(WidowBaseEnv):
 
     def _load_meshes(self):
         super()._load_meshes()
-        if self._env_name == "WidowX200GraspEnv":
+        if self._env_name == "Widow200GraspEnv":
             self._objects = {
                 'lego': bullet.objects.lego(),
                 'box': bullet.objects.box(),
@@ -57,7 +57,7 @@ class Widow200GraspEnv(WidowBaseEnv):
                 bullet.get_link_state(self._robot_id, self._end_effector,
                                       'theta'))
             gripper = -0.8
-            self._simulate(pos, theta, gripper, delta_theta=0.)
+            self._simulate(pos, theta, gripper, delta_theta=theta)
 
         return self.get_observation()
 

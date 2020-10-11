@@ -2,24 +2,26 @@ import roboverse
 import numpy as np
 import pickle as pkl
 from tqdm import tqdm
-from railrl.envs.images import EnvRenderer, InsertImageEnv
+from roboverse.utils.renderer import EnvRenderer, InsertImageEnv
+from roboverse.bullet.misc import quat_to_deg 
 import os
 from PIL import Image
 import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--name", type=str)
-parser.add_argument("--num_trajectories", type=int, default=10)
+parser.add_argument("--num_trajectories", type=int, default=1000)
 parser.add_argument("--num_timesteps", type=int, default=50)
+parser.add_argument("--subset", type=str, default='train')
 parser.add_argument("--video_save_frequency", type=int,
                     default=0, help="Set to zero for no video saving")
-parser.add_argument("--gui", dest="gui", action="store_true", default=False)
 
 args = parser.parse_args()
-data_save_path = "/home/ashvin/data/sasha/demos/" + args.name + ".pkl"
+demo_data_save_path = "/home/ashvin/data/sasha/demos/gr_" + args.name + "_demos"
+recon_data_save_path = "/home/ashvin/data/sasha/demos/gr_" + args.name + "_images.npy"
 video_save_path = "/home/ashvin/data/sasha/demos/videos"
 
-state_env = roboverse.make('SawyerRigMultiobj-v0', gui=args.gui)
+state_env = roboverse.make('SawyerRigMultiobj-v0', DoF=3, object_subset=args.subset)
 imsize = state_env.obs_img_dim
 
 renderer_kwargs=dict(
@@ -33,7 +35,6 @@ renderer = EnvRenderer(init_camera=None, **renderer_kwargs)
 env = InsertImageEnv(state_env, renderer=renderer)
 imlength = env.obs_img_dim * env.obs_img_dim * 3
 
-object_name = 'obj'
 success = 0
 returns = 0
 act_dim = env.action_space.shape[0]
@@ -41,9 +42,15 @@ act_dim = env.action_space.shape[0]
 if not os.path.exists(video_save_path) and args.video_save_frequency > 0:
     os.makedirs(video_save_path)
 
-dataset = []
+demo_dataset = []
+recon_dataset = {
+    'observations': np.zeros((args.num_trajectories, args.num_timesteps, imlength), dtype=np.uint8),
+    'object': [],
+    'env': np.zeros((args.num_trajectories, imlength), dtype=np.uint8),
+}
 
 for i in tqdm(range(args.num_trajectories)):
+    env.reset()
     trajectory = {
         'observations': [],
         'next_observations': [],
@@ -54,12 +61,12 @@ for i in tqdm(range(args.num_trajectories)):
         'env_infos': np.zeros((args.num_timesteps), dtype=np.uint8),
         'object_name': env.curr_object,
     }
-
-    env.reset()
-    target_pos = env.get_object_midpoint(object_name)
     images = []
+    #recon_dataset['env'][i, :] = np.uint8(env.render_obs().transpose()).flatten()
+    #recon_dataset['object'].append(env.curr_object)
     for j in range(args.num_timesteps):
         img = np.uint8(env.render_obs())
+        #recon_dataset['observations'][i, j, :] = img.transpose().flatten()
         images.append(Image.fromarray(img))
 
         ee_pos = env.get_end_effector_pos()
@@ -120,12 +127,19 @@ for i in tqdm(range(args.num_trajectories)):
                        format='GIF', append_images=images[1:],
                        save_all=True, duration=100, loop=0)
 
-    dataset.append(trajectory)
+    demo_dataset.append(trajectory)
 
 print('Success Rate: {}'.format(success / args.num_trajectories))
 print('Returns: {}'.format(returns / args.num_trajectories))
 
-file = open(data_save_path, 'wb')
-pkl.dump(dataset, file)
-file.close()
 
+
+#np.save(recon_data_save_path, recon_dataset)
+step_size = 1000
+for i in range(args.num_trajectories // step_size):
+    curr_name = demo_data_save_path + '_{0}.pkl'.format(i)
+    start_ind, end_ind = i*step_size, (i+1)*step_size
+    curr_data = demo_dataset[start_ind:end_ind]
+    file = open(curr_name, 'wb')
+    pkl.dump(curr_data, file)
+    file.close()
