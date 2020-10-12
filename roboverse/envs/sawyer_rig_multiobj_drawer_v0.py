@@ -17,7 +17,7 @@ from roboverse.bullet.button_utils import *
 test_set = ['mug', 'long_sofa', 'camera', 'grill_trash_can', 'beer_bottle']
 
 quat_dict={'mug': [0, -1, 0, 1],'long_sofa': [0, 0, 0, 1],'camera': [-1, 0, 0, 0],
-        'grill_trash_can': [0, 0, 0, 1],'beer_bottle': [0, 0, 1, 1]}
+        'grill_trash_can': [0, 0, 1, 1], 'beer_bottle': [0, 0, 1, -1]}
 
 class SawyerRigMultiobjDrawerV0(SawyerBaseEnv):
 
@@ -79,18 +79,19 @@ class SawyerRigMultiobjDrawerV0(SawyerBaseEnv):
 
         self.object_dict, self.scaling = self.get_object_info()
         self.curr_object = None
-        self._object_position_low = (0.55,-0.2,-.36)
-        self._object_position_high = (0.85,0.2,-0.15)
-        self._goal_low = np.array([0.55,-0.2,-.11])
-        self._goal_high = np.array([0.85,0.2,-0.11])
-        self._fixed_object_position = np.array([.8, -0.175, -.25])
+        self._object_position_low = (0.55,-0.18,-.36)
+        self._object_position_high = (0.85,0.18,-0.15)
+        self._goal_low = np.array([0.55,-0.18,-.11])
+        self._goal_high = np.array([0.8,0.18,-0.11])
+        self._fixed_object_position = np.array([.82, -0.125, -.25])
+        self._fixed_lego_position = np.array([.775, 0.125, -.25])
         self.start_obj_ind = 4 if (self.DoF == 3) else 8
         self.default_theta = bullet.deg_to_quat([180, 0, 0])
         self._success_threshold = success_threshold
         self.obs_img_dim = obs_img_dim #+.15
         self._view_matrix_obs = bullet.get_view_matrix(
-            target_pos=[.7, -0.05, -0.3], distance=0.5,
-            yaw=90, pitch=-40, roll=0, up_axis_index=2)
+            target_pos=[.7, 0, -0.25], distance=0.425,
+            yaw=90, pitch=-42, roll=0, up_axis_index=2)
         self._projection_matrix_obs = bullet.get_projection_matrix(
             self.obs_img_dim, self.obs_img_dim)
         self.dt = 0.1
@@ -152,7 +153,7 @@ class SawyerRigMultiobjDrawerV0(SawyerBaseEnv):
 
         self._objects['button'] = bullet.objects.button()
         self._objects['lego'] = bullet.objects.drawer_lego()
-        self.tray = bullet.objects.tray()
+        self.tray = bullet.objects.drawer_tray()
         self.init_button_height = get_button_cylinder_pos(self._objects['button'])[2]
         self.drawer_opened = False
 
@@ -249,15 +250,20 @@ class SawyerRigMultiobjDrawerV0(SawyerBaseEnv):
 
     def check_obj_bounding_box(self, obj):
         object_pos = bullet.get_body_info(obj)['pos']
-        low, high = np.array(self._pos_low), np.array(self._pos_high)
-        adjustment = np.array([0.025, 0.025, 0.15])
-        low, high = low - adjustment, high + adjustment
+        adjustment = np.array([0.045, 0.04, 0.15])
+        low = np.array(self._pos_low) - adjustment
+        high = np.array(self._pos_high) + adjustment
         contained = (object_pos > low).all() and (object_pos < high).all()
         return contained
 
     def enforce_bounding_box(self):
         contained_obj = self.check_obj_bounding_box(self._objects['obj'])
         contained_lego = self.check_obj_bounding_box(self._objects['lego'])
+        
+        if not contained_obj or not contained_lego:
+            bullet.position_control(self._sawyer, self._end_effector,
+                np.array(self._pos_init), self.default_theta)
+            for i in range(3): self._simulate(np.array(self._pos_init), self.default_theta, -1)
 
         if not contained_obj:
             p.removeBody(self._objects['obj'])
@@ -265,7 +271,7 @@ class SawyerRigMultiobjDrawerV0(SawyerBaseEnv):
 
         if not contained_lego:
             p.removeBody(self._objects['lego'])
-            obj_pos = self.sample_object_location()
+            obj_pos = self._fixed_lego_position
             self._objects['lego'] = bullet.objects.drawer_lego(pos=obj_pos)
 
     def step(self, *action):

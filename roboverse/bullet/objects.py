@@ -106,7 +106,7 @@ bowl_sliding = loader(ASSET_PATH, 'objects/bowl_sliding/bowl.urdf',
 
 
 # Drawer
-drawer_pos = np.array([0.6, 0.1, -.34])
+drawer_pos = np.array([0.6, 0.125, -.34])
 drawer = loader(ASSET_PATH, os.path.join(obj_dir, "drawer", "drawer.urdf"),
               pos=drawer_pos + np.array([0, 0, 0.12]),
               scale=0.125)
@@ -120,5 +120,10 @@ button = loader(ASSET_PATH, os.path.join(obj_dir, "button", "button.urdf"),
 drawer_lego = loader(PDATA_PATH, 'lego/lego.urdf',
               pos=drawer_pos + np.array([-0.01, 0, 0.03]),
               quat=[0, 0, 1, 0],
-              rgba=[1, 0, 0, 1],
-              scale=1.2)
+              rgba=[0, 0, 1, 1],
+              scale=1.4)
+drawer_tray = loader(ASSET_PATH, os.path.join(obj_dir, "box_open_top", "box_open_top.urdf"),
+              pos=[0.6, -0.15, -.35],
+              rgba=[1, 1, 1, 1],
+              deg=[0, 0, 0],
+              scale=0.175)
