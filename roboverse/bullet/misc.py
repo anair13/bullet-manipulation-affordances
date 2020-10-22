@@ -65,6 +65,31 @@ def setup_headless(timestep=1./240, solver_iterations=150, gravity=-10):
 def reset():
     p.resetSimulation()
 
+def replace_line(filename, line_num, text):
+    lines = open(filename, 'r').readlines()    
+    lines[line_num] = text
+    out = open(filename, 'w')
+    out.writelines(lines)
+    out.close()
+
+def load_urdf_randomize_color(filepath, pos=[0, 0, 0], quat=[0, 0, 0, 1], scale=1, random_color_p=0):
+    from shutil import copyfile
+
+    if np.random.uniform() < random_color_p:
+        rand_filepath = filepath[:-5] + '_rand_color.urdf'
+        copyfile(filepath, rand_filepath)
+        color_line = '    <color rgba="{0}. {1}. {2}. 1."/>'.format(np.random.uniform(),np.random.uniform(),np.random.uniform())
+        replace_line(rand_filepath, 3, color_line)
+        try:
+            body = p.loadURDF(rand_filepath, globalScaling=scale)
+        finally:
+            os.remove(rand_filepath)
+    else:
+        body = p.loadURDF(filepath, globalScaling=scale)
+
+    p.resetBasePositionAndOrientation(body, pos, quat)
+    return body
+
 def load_urdf(filepath, pos=[0, 0, 0], quat=[0, 0, 0, 1], scale=1, rgba=None):
     body = p.loadURDF(filepath, globalScaling=scale)
     p.resetBasePositionAndOrientation(body, pos, quat)

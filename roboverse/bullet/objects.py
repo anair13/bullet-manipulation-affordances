@@ -7,8 +7,21 @@ import math
 
 from roboverse.bullet.misc import (
   load_urdf,
+  load_urdf_randomize_color,
   deg_to_quat,
 )
+
+def loader_randomize_color(*filepath, **defaults):
+    filepath = os.path.join(*filepath)
+    def fn(*args, **kwargs):
+        defaults.update(kwargs)
+
+        if 'deg' in defaults:
+          assert 'quat' not in defaults
+          defaults['quat'] = deg_to_quat(defaults['deg'])
+          del defaults['deg']
+        return load_urdf_randomize_color(filepath, **defaults)
+    return fn
 
 def loader(*filepath, **defaults):
     filepath = os.path.join(*filepath)
@@ -45,7 +58,6 @@ widowx_200 = loader(
 
 
 ## pybullet_data objects
-
 table = loader(PDATA_PATH, 'table/table.urdf',
                pos=[.75, -.2, -1],
                quat=[0, 0, 0.707107, 0.707107],
@@ -105,25 +117,25 @@ bowl_sliding = loader(ASSET_PATH, 'objects/bowl_sliding/bowl.urdf',
               scale=0.25)
 
 
-# Drawer
+# Drawer (WARNING, DO NOT TOUCH THESE URDF FILES, IT WILL BREAK THINGS AND BE VERY HARD TO CATCH!!!!!)
 drawer_pos = np.array([0.6, 0.125, -.34])
-drawer = loader(ASSET_PATH, os.path.join(obj_dir, "drawer", "drawer.urdf"),
+drawer = loader_randomize_color(ASSET_PATH, os.path.join(obj_dir, "drawer", "drawer.urdf"),
               pos=drawer_pos + np.array([0, 0, 0.12]),
               scale=0.125)
-drawer_no_handle = loader(ASSET_PATH, os.path.join(obj_dir, "drawer", "drawer_no_handle.urdf"),
+drawer_no_handle = loader_randomize_color(ASSET_PATH, os.path.join(obj_dir, "drawer", "drawer_no_handle.urdf"),
               pos=drawer_pos,
               deg=[0,0,90],
               scale=0.125)
-button = loader(ASSET_PATH, os.path.join(obj_dir, "button", "button.urdf"),
+button = loader_randomize_color(ASSET_PATH, os.path.join(obj_dir, "button", "button.urdf"),
               pos=drawer_pos + np.array([0, 0, 0.2]),
               scale=0.25)
+
 drawer_lego = loader(PDATA_PATH, 'lego/lego.urdf',
               pos=drawer_pos + np.array([-0.01, 0, 0.03]),
               quat=[0, 0, 1, 0],
               rgba=[0, 0, 1, 1],
               scale=1.4)
-drawer_tray = loader(ASSET_PATH, os.path.join(obj_dir, "box_open_top", "box_open_top.urdf"),
+drawer_tray = loader_randomize_color(ASSET_PATH, os.path.join(obj_dir, "box_open_top", "box_open_top.urdf"),
               pos=[0.6, -0.15, -.35],
-              rgba=[1, 1, 1, 1],
               deg=[0, 0, 0],
               scale=0.175)
