@@ -66,22 +66,23 @@ def reset():
     p.resetSimulation()
 
 def replace_line(filename, line_num, text):
-    lines = open(filename, 'r').readlines()    
+    lines = open(filename, 'r').readlines()
     lines[line_num] = text
     out = open(filename, 'w')
     out.writelines(lines)
     out.close()
 
-def load_urdf_randomize_color(filepath, pos=[0, 0, 0], quat=[0, 0, 0, 1], scale=1, random_color_p=0):
+def load_urdf_randomize_color(filepath, pos=[0, 0, 0], quat=[0, 0, 0, 1], scale=1, rgba=None):
     from shutil import copyfile
 
-    if np.random.uniform() < random_color_p:
-        rand_filepath = filepath[:-5] + '_rand_color.urdf'
+    if rgba is not None:
+        rand_filepath = filepath[:-5] + '_rand_color_{0}.urdf'.format(np.random.uniform())
         copyfile(filepath, rand_filepath)
-        color_line = '    <color rgba="{0}. {1}. {2}. 1."/>'.format(np.random.uniform(),np.random.uniform(),np.random.uniform())
+        color_line = '    <color rgba="{0} {1} {2} {3}"/>'.format(rgba[0],rgba[1],rgba[2], rgba[3])
         replace_line(rand_filepath, 3, color_line)
         try:
             body = p.loadURDF(rand_filepath, globalScaling=scale)
+            p.changeVisualShape(body, -1, rgbaColor=rgba)
         finally:
             os.remove(rand_filepath)
     else:

@@ -21,28 +21,17 @@ args = parser.parse_args()
 data_save_path = "/home/ashvin/data/sasha/demos/" + args.name + ".pkl"
 video_save_path = "/home/ashvin/data/sasha/demos/videos"
 
-env = roboverse.make('SawyerRigMultiobjDrawer-v0', object_subset=['mug'], random_color_p=0)
+#['obj']
+#env = roboverse.make('SawyerRigAffordances-v0', object_subset=['mug'], test_env=True)
+env = roboverse.make('SawyerRigAffordances-v0', test_env=True, env_type='top_drawer')
 
-def load_vae(vae_file):
-    if vae_file[0] == "/":
-        local_path = vae_file
-    else:
-        local_path = sync_down(vae_file)
-    vae = pkl.load(open(local_path, "rb"))
-    print("loaded", local_path)
-    vae.to("cpu")
-    return vae
-
-vae_path = "/home/ashvin/data/rail-khazatsky/sasha/complex_obj/best_vae.pkl"
-model = load_vae(vae_path)
 
 obs_dim = env.observation_space.spaces['state_achieved_goal'].low.size
 imlength = env.obs_img_dim * env.obs_img_dim * 3
 
 dataset = {
-        'initial_latent_state': np.zeros((args.num_trajectories * args.num_timesteps, model.representation_size), dtype=np.float),
-        'latent_desired_goal': np.zeros((args.num_trajectories * args.num_timesteps,
-            model.representation_size), dtype=np.float),
+        'initial_latent_state': np.zeros((args.num_trajectories * args.num_timesteps, 720), dtype=np.float),
+        'latent_desired_goal': np.zeros((args.num_trajectories * args.num_timesteps, 720), dtype=np.float),
         'state_desired_goal': np.zeros((args.num_trajectories * args.num_timesteps,
             obs_dim), dtype=np.float),
         'image_desired_goal': np.zeros((args.num_trajectories * args.num_timesteps, imlength), dtype=np.float),
@@ -52,8 +41,12 @@ dataset = {
 comb_tasks_done = 0
 for i in tqdm(range(args.num_trajectories)):
     env.demo_reset()
-
     init_img = np.uint8(env.render_obs()).transpose() / 255.0
+
+    # env.obj_goal = np.array([0.55, -0.15, -.35])
+    # for k in range(50):
+    #     action = env.get_demo_action()
+    #     obs, reward, done, info = env.step(action)
     
     for j in range(args.num_timesteps):
         action = env.get_demo_action()

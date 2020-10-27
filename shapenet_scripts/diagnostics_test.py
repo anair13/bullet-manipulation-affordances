@@ -11,7 +11,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--name", type=str)
-parser.add_argument("--num_trajectories", type=int, default=5000)
+parser.add_argument("--num_trajectories", type=int, default=10)
 parser.add_argument("--num_timesteps", type=int, default=50)
 parser.add_argument("--subset", type=str, default='train')
 parser.add_argument("--video_save_frequency", type=int,
@@ -21,9 +21,7 @@ args = parser.parse_args()
 demo_data_save_path = "/home/ashvin/data/sasha/demos/gr_" + args.name + "_demos"
 recon_data_save_path = "/home/ashvin/data/sasha/demos/gr_" + args.name + "_images.npy"
 
-#state_env = roboverse.make('SawyerRigAffordances-v0')
-# state_env = roboverse.make('SawyerRigAffordances-v0', random_color_p=0.0, spawn_prob=0.75)
-state_env = roboverse.make('SawyerRigAffordances-v0', random_color_p=0.0, spawn_prob=0.75)
+state_env = roboverse.make('SawyerRigAffordances-v0', spawn_prob=1.0)
 
 # FOR TESTING, TURN COLORS OFF
 imsize = state_env.obs_img_dim
@@ -49,6 +47,7 @@ recon_dataset = {
     'object': [],
     'env': np.zeros((args.num_trajectories, imlength), dtype=np.uint8),
 }
+context = []
 
 avg_tasks_done = 0
 for j in tqdm(range(args.num_trajectories)):
@@ -79,19 +78,11 @@ for j in tqdm(range(args.num_trajectories)):
         trajectory['actions'][i, :] = action
         trajectory['next_observations'].append(next_observation)
         trajectory['rewards'][i] = reward
+    #observation['state_desired_goal'] = observation['state_observation']
+    context.append(observation)
 
     demo_dataset.append(trajectory)
     avg_tasks_done += env.tasks_done
 
-print('Success Rate: {}'.format(avg_tasks_done / args.num_trajectories))
-np.save(recon_data_save_path, recon_dataset)
-step_size = 1000
-
-num_steps = math.ceil(args.num_trajectories / step_size)
-for i in range(num_steps):
-    curr_name = demo_data_save_path + '_{0}.pkl'.format(i)
-    start_ind, end_ind = i*step_size, (i+1)*step_size
-    curr_data = demo_dataset[start_ind:end_ind]
-    file = open(curr_name, 'wb')
-    pkl.dump(curr_data, file)
-    file.close()
+diag = env.get_contextual_diagnostics(demo_dataset, context)
+print(diag)
