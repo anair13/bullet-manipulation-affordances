@@ -11,8 +11,8 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--name", type=str)
-parser.add_argument("--num_trajectories", type=int, default=500)
-parser.add_argument("--num_timesteps", type=int, default=50)
+parser.add_argument("--num_trajectories", type=int, default=2000)
+parser.add_argument("--num_timesteps", type=int, default=150)
 parser.add_argument("--subset", type=str, default='train')
 parser.add_argument("--video_save_frequency", type=int,
                     default=0, help="Set to zero for no video saving")
@@ -42,7 +42,7 @@ imlength = env.obs_img_dim * env.obs_img_dim * 3
 success = 0
 returns = 0
 act_dim = env.action_space.shape[0]
-
+num_datasets = 0
 demo_dataset = []
 recon_dataset = {
     'observations': np.zeros((args.num_trajectories, args.num_timesteps, imlength), dtype=np.uint8),
@@ -83,15 +83,25 @@ for j in tqdm(range(args.num_trajectories)):
     demo_dataset.append(trajectory)
     avg_tasks_done += env.tasks_done
 
+    if ((j + 1) % 250) == 0:
+        curr_name = demo_data_save_path + '_{0}.pkl'.format(num_datasets)
+        file = open(curr_name, 'wb')
+        pkl.dump(demo_dataset, file)
+        file.close()
+
+        num_datasets += 1
+        demo_dataset = []
+
+
 print('Success Rate: {}'.format(avg_tasks_done / args.num_trajectories))
 np.save(recon_data_save_path, recon_dataset)
-step_size = 1000
+# step_size = 1000
 
-num_steps = math.ceil(args.num_trajectories / step_size)
-for i in range(num_steps):
-    curr_name = demo_data_save_path + '_{0}.pkl'.format(i)
-    start_ind, end_ind = i*step_size, (i+1)*step_size
-    curr_data = demo_dataset[start_ind:end_ind]
-    file = open(curr_name, 'wb')
-    pkl.dump(curr_data, file)
-    file.close()
+# num_steps = math.ceil(args.num_trajectories / step_size)
+# for i in range(num_steps):
+#     curr_name = demo_data_save_path + '_{0}.pkl'.format(i)
+#     start_ind, end_ind = i*step_size, (i+1)*step_size
+#     curr_data = demo_dataset[start_ind:end_ind]
+#     file = open(curr_name, 'wb')
+#     pkl.dump(curr_data, file)
+#     file.close()

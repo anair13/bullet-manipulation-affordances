@@ -26,7 +26,7 @@ top_drawer_dict= {'handle_drawer': True, 'button': False, 'drawer': True, 'rand_
 'tray': False, 'drawer_open': False, 'side_sign': 1.}
 
 bottom_drawer_dict= {'handle_drawer': False, 'button': True, 'drawer': True, 'rand_obj': False,
-'tray': False, 'drawer_open': True, 'side_sign': 1.}
+'tray': False, 'drawer_open': False, 'side_sign': 1.}
 
 tray_dict= {'handle_drawer': False, 'button': False, 'drawer': False, 'rand_obj': True,
 'tray': True, 'drawer_open': False, 'side_sign': 1.}
@@ -49,7 +49,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
                  object_subset='test',
                  use_bounding_box=True,
                  random_color_p=1.0,
-                 spawn_prob=0.5,
+                 spawn_prob=0.75,
                  quat_dict=quat_dict,
                  task='goal_reaching',
                  test_env=False,
@@ -160,6 +160,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
             self.affordance_dict = top_drawer_dict.copy()
         elif self.env_type == 'bottom_drawer':
             self.affordance_dict = bottom_drawer_dict.copy()
+            self.affordance_dict['drawer_open'] = np.random.uniform() < 0.5
         elif self.env_type == 'tray':
             self.affordance_dict = tray_dict.copy()
         elif self.env_type == 'obj':
@@ -667,9 +668,9 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         if self.affordance_dict['handle_drawer']:
             td_pos = self.get_object_pos('drawer_handle')
             if s == 1:
-                low, high = (td_pos - np.array([0, 0.18, 0])), td_pos
+                low, high = td_pos - np.array([0, 0.18, 0]), td_pos - np.array([0, 0.05, 0])
             else:
-                low, high = td_pos, (td_pos + np.array([0, 0.18, 0]))
+                low, high = td_pos + np.array([0, 0.05, 0]), td_pos + np.array([0, 0.18, 0])
             self.td_goal = np.random.uniform(low=low, high=high)
         else:
             self.td_goal = np.zeros(3)
@@ -916,7 +917,9 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
             action *= 3.0
         else:
             #print('Stage 3')
-            action = np.array([0., 0., -1.])
+            action = (target_pos - ee_pos)
+            action[2] = -1.
+            #action = np.array([0., 0., -1.])
 
         return action, done
 
