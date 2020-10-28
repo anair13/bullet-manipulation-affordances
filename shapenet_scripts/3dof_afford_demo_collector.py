@@ -11,7 +11,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--name", type=str)
-parser.add_argument("--num_trajectories", type=int, default=5000)
+parser.add_argument("--num_trajectories", type=int, default=500)
 parser.add_argument("--num_timesteps", type=int, default=50)
 parser.add_argument("--subset", type=str, default='train')
 parser.add_argument("--video_save_frequency", type=int,
@@ -23,7 +23,7 @@ recon_data_save_path = "/home/ashvin/data/sasha/demos/gr_" + args.name + "_image
 
 #state_env = roboverse.make('SawyerRigAffordances-v0')
 # state_env = roboverse.make('SawyerRigAffordances-v0', random_color_p=0.0, spawn_prob=0.75)
-state_env = roboverse.make('SawyerRigAffordances-v0', random_color_p=0.0, spawn_prob=0.75)
+state_env = roboverse.make('SawyerRigAffordances-v0')
 
 # FOR TESTING, TURN COLORS OFF
 imsize = state_env.obs_img_dim

@@ -477,36 +477,34 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         
         if self.affordance_dict['drawer']:
             info['lego_picked_up'] = lego_pos[2] > self.pickup_eps
-        #     info['botton_drawer_opened'] = (bottom_drawer_pos - self.init_drawer_pos) > 0.05
-
-        # if self.affordance_dict['button']:
-        #     info['button_pressed'] = (self.init_button_height - button_pos) > 0.01
-
-        # if self.affordance_dict['handle_drawer']:
-        #     info['top_drawer_opened'] = (self.init_handle_pos - top_drawer_pos) > 0.05
 
         return info
 
     def get_success_metric(self, curr_state, goal_state, key=None, success_list=None, present_list=None):
         if key == 'hand':
             i, j, thresh = 0, 3, self.obj_thresh
+            is_task = 1
         elif key == 'rand_obj':
             i, j, thresh = 4, 7, self.obj_thresh
+            is_task = int(curr_state[i] != 0)
         elif key == 'lego':
             i, j, thresh = 7, 10, self.obj_thresh
+            is_task = int((curr_state[i] != 0) and (curr_state[12] != 0))
         elif key == 'bottom_drawer':
             i, j, thresh = 10, 11, self.drawer_thresh
+            is_task = int((curr_state[i] != 0) and (curr_state[12] != 0))
         elif key == 'top_drawer':
             i, j, thresh = 11, 12, self.drawer_thresh
+            is_task = int(curr_state[i] != 0)
         elif key == 'button':
             i, j, thresh = 12, 13, self.button_thresh
+            is_task = int(curr_state[i] != 0)
         else:
             print('KEY ERROR')
             return 1/0
 
         curr_pos = curr_state[i:j]
         goal_pos = goal_state[i:j]
-        is_task = int(curr_pos[0] != 0)
         success = int((np.linalg.norm(curr_pos - goal_pos) < thresh) and is_task)
 
         if present_list is not None:

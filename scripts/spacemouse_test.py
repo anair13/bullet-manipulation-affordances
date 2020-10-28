@@ -23,7 +23,7 @@ model = load_vae(vae_path)
 #env.reset()
 images = []
 for env_type in ['tray', 'obj',1, 1]:
-    env = rv.make('SawyerRigAffordances-v0', test_env=True, env_type='bottom_drawer')
+    env = rv.make('SawyerRigAffordances-v0', test_env=True, spawn_prob=1.0)
     #print('Iteration: ', j)
     env.demo_reset()
 
@@ -39,6 +39,25 @@ for env_type in ['tray', 'obj',1, 1]:
         action = env.get_demo_action()
         #env.get_reward(print_stats=True)
         next_observation, reward, done, info = env.step(action)
+
+# images = []
+# for env_type in ['tray', 'obj',1, 1]:
+#     env = rv.make('SawyerRigAffordances-v0', test_env=True, spawn_prob=1.0)
+#     #print('Iteration: ', j)
+#     env.demo_reset()
+#     init_img = np.uint8(env.render_obs()).transpose() / 255.0
+#     init_z = model.encode_np(init_img)
+
+#     for i in range(3):
+#         #img = Image.fromarray(np.uint8(env.render_obs()))
+
+#         sampled_z = model.sample_prior(1, cond=init_z)
+#         img_recon = model.decode_np(sampled_z).reshape(3,48, 48).transpose() * 255.0
+#         images.append(Image.fromarray(np.uint8(img_recon)))
+
+#         action = env.get_demo_action()
+#         #env.get_reward(print_stats=True)
+#         next_observation, reward, done, info = env.step(action)
 
 # env.demo_reset()
 # i = 0
