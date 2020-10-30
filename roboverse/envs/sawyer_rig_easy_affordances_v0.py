@@ -34,7 +34,7 @@ tray_dict= {'handle_drawer': False, 'button': False, 'drawer': False, 'rand_obj'
 obj_dict= {'handle_drawer': False, 'button': False, 'drawer': False, 'rand_obj': True,
 'tray': False, 'drawer_open': False, 'side_sign': 1.}
 
-class SawyerRigAffordancesV0(SawyerBaseEnv):
+class SawyerRigEasyAffordancesV0(SawyerBaseEnv):
 
     def __init__(self,
                  goal_pos=(0.75, 0.2, -0.1),
@@ -99,6 +99,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         self.env_type = env_type
 
         if self.test_env:
+            #self.spawn_prob = 1.0
             self.random_color_p = 0.0
             self.object_subset = ['grill_trash_can']
 
@@ -157,8 +158,12 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
     def sample_enviorment(self):
         if self.env_type == 'top_drawer':
             self.affordance_dict = top_drawer_dict.copy()
+            if (np.random.uniform() < 0.5) or self.test_env:
+                self.affordance_dict['side_sign'] = 1.0
         elif self.env_type == 'bottom_drawer':
             self.affordance_dict = bottom_drawer_dict.copy()
+            if (np.random.uniform() < 0.5) or self.test_env:
+                self.affordance_dict['side_sign'] = 1.0
             self.affordance_dict['drawer_open'] = np.random.uniform() < 0.5
         elif self.env_type == 'tray':
             self.affordance_dict = tray_dict.copy()
@@ -214,11 +219,11 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
 
         self._sawyer = bullet.objects.drawer_sawyer()
 
-        # if np.random.uniform() < self.random_color_p:
-        #     color = [np.random.uniform() for i in range(3)] + [1]
-        #     self._table = bullet.objects.table(rgba=color)
-        # else:
-        self._table = bullet.objects.table(rgba=[.92,.85,.7,1])
+        if np.random.uniform() < self.random_color_p:
+            color = [np.random.uniform() for i in range(3)] + [1]
+            self._table = bullet.objects.table(rgba=color)
+        else:
+            self._table = bullet.objects.table(rgba=[.92,.85,.7,1])
 
         # Drawer
         if self.affordance_dict['drawer']:
@@ -265,7 +270,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
             issue_catch = self.affordance_dict['handle_drawer'] and not self.affordance_dict['drawer']
             if self.test_env and (not self.affordance_dict['drawer']):
                 tray_pos = front_right
-            elif self.test_env and issue_catch:
+            if self.test_env and issue_catch:
                 tray_pos = front_left
             elif self.test_env:
                 tray_pos = back_left
@@ -822,16 +827,10 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
             options.append('drawer')
         if self.affordance_dict['button']:
             options.append('button')
-
-        remaining_tasks = [opt for opt in options if opt not in self.tasks_done_names]
-        if len(remaining_tasks) > 0:
-            return random.choice(remaining_tasks)
-            
         if self.affordance_dict['drawer'] and self.affordance_dict['drawer_open']:
             options.append('lego')
         if self.affordance_dict['rand_obj']:
             options.append('rand_obj')
-
 
         remaining_tasks = [opt for opt in options if opt not in self.tasks_done_names]
         if len(remaining_tasks) == 0: remaining_tasks.append('hand')

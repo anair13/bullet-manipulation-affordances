@@ -11,22 +11,20 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--name", type=str)
-parser.add_argument("--num_trajectories", type=int, default=4000)
+parser.add_argument("--num_trajectories", type=int, default=2000)
 parser.add_argument("--num_timesteps", type=int, default=75)
 parser.add_argument("--subset", type=str, default='train')
 parser.add_argument("--video_save_frequency", type=int,
                     default=0, help="Set to zero for no video saving")
 
 args = parser.parse_args()
-prefix = "/home/ashvin/data/sasha/demos"
 
-# prefix = "/home/ashvin/data/rail-khazatsky/sasha/affordances/combined/"
+prefix = "/home/ashvin/data/rail-khazatsky/sasha/affordances/combined/"
 demo_data_save_path = prefix + args.name + "_demos"
 recon_data_save_path = prefix + args.name + "_images.npy"
 
-state_env = roboverse.make('SawyerRigAffordances-v0', random_color_p=0.0)
+state_env = roboverse.make('SawyerRigMultiobjTray-v0')
 
-# FOR TESTING, TURN COLORS OFF
 imsize = state_env.obs_img_dim
 
 renderer_kwargs=dict(
@@ -82,7 +80,7 @@ for j in tqdm(range(args.num_trajectories)):
         trajectory['rewards'][i] = reward
 
     demo_dataset.append(trajectory)
-    avg_tasks_done += env.tasks_done
+    avg_tasks_done += env.done
 
     if ((j + 1) % 500) == 0:
         curr_name = demo_data_save_path + '_{0}.pkl'.format(num_datasets)

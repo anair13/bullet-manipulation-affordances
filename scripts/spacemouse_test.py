@@ -23,11 +23,17 @@ model = load_vae(vae_path)
 #env.reset()
 images = []
 for j in range(5):
-    env = rv.make('SawyerRigAffordances-v0', env_type='top_drawer')
+    env = rv.make('SawyerRigAffordances-v0', env_type='tray', test_env=True)
     print('Iteration: ', j)
     env.demo_reset()
 
-    for i in range(150):
+    env.obj_goal = np.array([0.78, 0.14, -.35])
+
+    for k in range(40):
+        action = env.get_demo_action()
+        next_observation, reward, done, info = env.step(action)
+
+    for i in range(50):
         #img = Image.fromarray(np.uint8(env.render_obs()))
 
         img = np.uint8(env.render_obs()).transpose() / 255.0

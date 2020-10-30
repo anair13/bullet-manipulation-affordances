@@ -9,20 +9,22 @@ from roboverse.bullet.misc import load_obj, quat_to_deg, draw_bbox
 import time
 plt.ion()
 
-quat_dict={'mug': [0, 0, 0, 1], 'long_sofa': [0, 0, 0, 1], 'camera': [-1, 0, 0, 0], 'grill_trash_can': [0, 0, 0, 1], 'beer_bottle': [0, 0, 1, 1]}
+# quat_dict={'mug': [0, 0, 0, 1], 'long_sofa': [0, 0, 0, 1], 'camera': [-1, 0, 0, 0], 'grill_trash_can': [0, 0, 0, 1], 'beer_bottle': [0, 0, 1, 1]}
 
 # Variables to define!
 DoF = 3 # (3, 4, 6)
-num_timesteps = 500
-object_subset = ['mug'] # (all, train, test)
+num_timesteps = 75
+object_subset = 'train' # (all, train, test)
 task = 'goal_reaching' # (pickup, goal_reaching)
-randomize = True
+randomize = False
 # Variables to define!
 
 # Set Up Enviorment
-spacemouse = rv.devices.SpaceMouse(DoF=DoF)
-state_env = rv.make('SawyerRigMultiobjDrawer-v0', gui=True, DoF=DoF, object_subset=object_subset,
-		quat_dict={}, task=task, randomize=randomize, visualize=False, random_color_p=0)
+#spacemouse = rv.devices.SpaceMouse(DoF=DoF)
+#state_env = rv.make('SawyerRigAffordances-v0', spawn_prob=1.0, test_env=True, gui=True)
+state_env = rv.make('SawyerRigMultiobjTray-v0', random_color_p=0.0, object_subset=['grill_trash_can'], gui=True)
+# state_env = rv.make('SawyerRigMultiobjTray-v0', gui=True, DoF=DoF, object_subset=object_subset,
+# 		quat_dict={}, task=task, randomize=randomize, visualize=False)
 imsize = state_env.obs_img_dim
 imlength = imsize * imsize * 3
 
@@ -183,56 +185,64 @@ def get_and_process_response(trajectory, traj_images):
 def rollout_trajectory():
 	trajectory = get_empty_traj_dict()
 
-	env.reset()
+	#env.reset()
 	env_image, traj_images = get_recon_image(env), []
 
+	env.demo_reset()
+
+	print(env.goal_pos)
 	for j in tqdm(range(num_timesteps)):
-		traj_images.append(get_recon_image(env))		
+		traj_images.append(get_recon_image(env))	
+		action = env.get_demo_action(test=True)
 
-		ee_pos = env.get_end_effector_pos()
-		target_pos = env.get_object_midpoint('obj')
-		achieved_goal = np.linalg.norm(env.goal_pos - target_pos) < 0.05
-		aligned = np.linalg.norm(target_pos[:2] - ee_pos[:2]) < 0.04
-		aligned_goal = np.linalg.norm(env.goal_pos[:2] - target_pos[:2]) < 0.04
-		enclosed = np.linalg.norm(target_pos[2] - ee_pos[2]) < 0.025
-		above = ee_pos[2] > -0.3
+		# ee_pos = env.get_end_effector_pos()
+		# target_pos = env.get_object_midpoint('obj')
+		# achieved_goal = np.linalg.norm(env.goal_pos - target_pos) < 0.05
+		# aligned = np.linalg.norm(target_pos[:2] - ee_pos[:2]) < 0.04
+		# aligned_goal = np.linalg.norm(env.goal_pos[:2] - target_pos[:2]) < 0.04
+		# enclosed = np.linalg.norm(target_pos[2] - ee_pos[2]) < 0.025
+		# above = ee_pos[2] > -0.3
 
-		if not aligned and not above:
-			print('Stage 1')
-			action = (target_pos - ee_pos) * 3.0
-			action[2] = 1
-			grip = -1.
-		elif not aligned:
-			print('Stage 2')
-			action = (target_pos - ee_pos) * 3.0
-			action[2] = 0.
-			action *= 3.0
-			grip = -1.
-		elif aligned and not enclosed:
-			print('Stage 3')
-			action = target_pos - ee_pos
-			action[2] -= 0.03
-			action *= 3.0
-			action[2] *= 2.0
-			grip = -1.
-		elif enclosed and grip < 1:
-			print('Stage 4')
-			action = target_pos - ee_pos
-			action[2] -= 0.03
-			action *= 3.0
-			action[2] *= 2.0
-			grip += 0.5
-		else:
-			print('Stage 5')
-			action = env.goal_pos - ee_pos
-			action *= 3.0
-			grip = 1.
+		# if not aligned and not above:
+		# 	print('Stage 1')
+		# 	action = (target_pos - ee_pos) * 3.0
+		# 	action[2] = 1
+		# 	grip = -1.
+		# elif not aligned:
+		# 	print('Stage 2')
+		# 	action = (target_pos - ee_pos) * 3.0
+		# 	action[2] = 0.
+		# 	action *= 3.0
+		# 	grip = -1.
+		# elif aligned and not enclosed:
+		# 	print('Stage 3')
+		# 	action = target_pos - ee_pos
+		# 	action[2] -= 0.03
+		# 	action *= 3.0
+		# 	action[2] *= 2.0
+		# 	grip = -1.
+		# elif enclosed and grip < 1:
+		# 	print('Stage 4')
+		# 	action = target_pos - ee_pos
+		# 	action[2] -= 0.03
+		# 	action *= 3.0
+		# 	action[2] *= 2.0
+		# 	grip += 0.5
+		# else:
+		# 	print('Stage 5')
+		# 	action = env.goal_pos - ee_pos
+		# 	action[2] *= 2.0
+		# 	action *= 3.0
+		# 	grip = 1.
 
-		action = np.append(action, [grip])
-		action = np.random.normal(action, 0.1)
-		action = np.clip(action, a_min=-1, a_max=1)
+		# if aligned_goal:
+		# 	grip = -1.
 
-		action = spacemouse.get_action()
+		# action = np.append(action, [grip])
+		# action = np.random.normal(action, 0.1)
+		# action = np.clip(action, a_min=-1, a_max=1)
+
+		#action = spacemouse.get_action()
 
 		observation = env.get_observation()
 		next_observation, reward, done, info = env.step(action)

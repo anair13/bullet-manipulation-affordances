@@ -102,6 +102,13 @@ SEQUENTIAL_ENVIRONMENT_SPECS = (
                    }
     },
     {
+        'id': 'SawyerRigMultiobjTray-v0',
+        'entry_point': ('roboverse.envs.sawyer_rig_multiobj_tray_v0:SawyerRigMultiobjTrayV0'),
+        'kwargs': {'max_force': 100,
+                   'action_scale': 0.05,
+                   }
+    },
+    {
         'id': 'SawyerRigMultiobjDrawer-v0',
         'entry_point': ('roboverse.envs.sawyer_rig_multiobj_drawer_v0:SawyerRigMultiobjDrawerV0'),
         'kwargs': {'max_force': 100,
@@ -114,6 +121,16 @@ SEQUENTIAL_ENVIRONMENT_SPECS = (
     {
         'id': 'SawyerRigAffordances-v0',
         'entry_point': ('roboverse.envs.sawyer_rig_affordances_v0:SawyerRigAffordancesV0'),
+        'kwargs': {'max_force': 100,
+                   'action_scale': 0.05,
+                   'pos_low': [0.5,-0.2,-.36],
+                   'pos_high': [0.85,0.2,-0.1],
+                   'pos_init': [0.6, -0.15, -0.2],
+                   }
+    },
+    {
+        'id': 'SawyerRigEasyAffordances-v0',
+        'entry_point': ('roboverse.envs.sawyer_rig_easy_affordances_v0:SawyerRigEasyAffordancesV0'),
         'kwargs': {'max_force': 100,
                    'action_scale': 0.05,
                    'pos_low': [0.5,-0.2,-.36],
