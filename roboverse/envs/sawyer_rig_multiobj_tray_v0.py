@@ -80,7 +80,8 @@ class SawyerRigMultiobjTrayV0(SawyerBaseEnv):
 
         if self.test_env:
             self.random_color_p = 0.0
-            self.object_subset = ['grill_trash_can']
+            if object_subset is 'all':
+                self.object_subset = ['grill_trash_can']
 
         self.object_dict, self.scaling = self.get_object_info()
         self.curr_object = None
@@ -288,7 +289,30 @@ class SawyerRigMultiobjTrayV0(SawyerBaseEnv):
             p.removeBody(self._objects['obj'])
             self.add_object(change_object=False)
 
+    def fancy_render_obs(self):
+        fancy_obs_dim = 256
+        fancy_projection_matrix_obs = bullet.get_projection_matrix(
+            fancy_obs_dim, fancy_obs_dim)
+
+        img, depth, segmentation = bullet.render(
+            fancy_obs_dim, fancy_obs_dim, self._view_matrix_obs,
+            fancy_projection_matrix_obs, shadow=0, gaussian_width=0)
+        if self._transpose_image:
+            img = np.transpose(img, (2, 0, 1))
+        return img
+
+    def fancy_get_image(self, width, height):
+        image = np.float32(self.fancy_render_obs())
+        return image
+
     def step(self, *action):
+
+        # # TEMP TEMP TEMP #
+        # from PIL import Image
+        # img = Image.fromarray(np.uint8(self.fancy_render_obs()))
+        # self.gif.append(img)
+        # # TEMP TEMP TEMP #
+
         # Get positional information
         pos = bullet.get_link_state(self._sawyer, self._end_effector, 'pos')
         curr_angle = bullet.get_link_state(self._sawyer, self._end_effector, 'theta')
@@ -422,6 +446,22 @@ class SawyerRigMultiobjTrayV0(SawyerBaseEnv):
             return info['picked_up'] - 1
 
     def reset(self, change_object=True):
+        # # TEMP TEMP TEMP #
+        # try:
+        #     import skvideo
+        #     rand_num = 1
+        #     filepath = '/home/ashvin/data/sasha/fancy_videos/{0}_rollout.mp4'.format(rand_num)
+        #     outputdata = np.stack(self.gif)
+        #     import ipdb; ipdb.set_trace()
+        #     skvideo.io.vwrite(filepath, outputdata)
+        #     # self.gif[0].save('/home/ashvin/data/sasha/fancy_videos/{0}_rollout.gif'.format(rand_num),
+        #     #            format='GIF', append_images=self.gif[:],
+        #     #            save_all=True, duration=100, loop=0)
+        # except AttributeError:
+        #     self.gif = []
+        # # TEMP TEMP TEMP #
+
+
         # Load Enviorment
         bullet.reset()
         bullet.setup_headless(self._timestep, solver_iterations=self._solver_iterations)
@@ -438,6 +478,11 @@ class SawyerRigMultiobjTrayV0(SawyerBaseEnv):
         action = np.array([0 for i in range(self.DoF)] + [-1])
         for _ in range(3):
             self.step(action)
+
+        # # TEMP TEMP TEMP #
+        # self.gif = []
+        # # TEMP TEMP TEMP #
+
         return self.get_observation()
 
     def format_obs(self, obs):

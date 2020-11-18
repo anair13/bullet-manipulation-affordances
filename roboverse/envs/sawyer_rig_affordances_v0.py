@@ -420,6 +420,15 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
             self._objects['lego'] = bullet.objects.drawer_lego(pos=self._reset_lego_position)
 
     def step(self, *action):
+        # # TEMP TEMP TEMP #
+        # from PIL import Image
+        # img = Image.fromarray(np.uint8(self.fancy_render_obs()))
+        # self.gif.append(img)
+        # # TEMP TEMP TEMP #
+
+
+
+
         # Get positional information
         pos = bullet.get_link_state(self._sawyer, self._end_effector, 'pos')
         curr_angle = bullet.get_link_state(self._sawyer, self._end_effector, 'theta')
@@ -625,6 +634,22 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
             img = np.transpose(img, (2, 0, 1))
         return img
 
+    def fancy_render_obs(self):
+        fancy_obs_dim = 256
+        fancy_projection_matrix_obs = bullet.get_projection_matrix(
+            fancy_obs_dim, fancy_obs_dim)
+
+        img, depth, segmentation = bullet.render(
+            fancy_obs_dim, fancy_obs_dim, self._view_matrix_obs,
+            fancy_projection_matrix_obs, shadow=0, gaussian_width=0)
+        if self._transpose_image:
+            img = np.transpose(img, (2, 0, 1))
+        return img
+
+    def fancy_get_image(self, width, height):
+        image = np.float32(self.fancy_render_obs())
+        return image
+
     def set_goal(self, goal):
         self.goal_pos = goal['state_desired_goal'][self.start_obj_ind:self.start_obj_ind + 3]
 
@@ -693,6 +718,22 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
                 [self.td_goal[1]], [self.button_goal]])
 
     def reset(self):
+
+        # # TEMP TEMP TEMP #
+        # try:
+        #     import skvideo
+        #     rand_num = 6
+        #     filepath = '/home/ashvin/data/sasha/fancy_videos/{0}_rollout.mp4'.format(rand_num)
+        #     outputdata = np.stack(self.gif)
+        #     import ipdb; ipdb.set_trace()
+        #     skvideo.io.vwrite(filepath, outputdata)
+        #     # self.gif[0].save('/home/ashvin/data/sasha/fancy_videos/{0}_rollout.gif'.format(rand_num),
+        #     #            format='GIF', append_images=self.gif[:],
+        #     #            save_all=True, duration=100, loop=0)
+        # except AttributeError:
+        #     self.gif = []
+        # # TEMP TEMP TEMP #
+
         # Load Enviorment
         bullet.reset()
         bullet.setup_headless(self._timestep, solver_iterations=self._solver_iterations)
@@ -710,6 +751,10 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         action = np.array([0 for i in range(self.DoF)] + [-1])
         for _ in range(3):
             self.step(action)
+
+        # # TEMP TEMP TEMP #
+        # self.gif = []
+        # # TEMP TEMP TEMP #
         return self.get_observation()
 
     def format_obs(self, obs):

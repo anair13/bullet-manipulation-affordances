@@ -12,6 +12,9 @@ import random
 import pickle
 import gym
 
+test_quat_dict={'mug': [0, -1, 0, 1],'long_sofa': [0, 0, 0, 1],'camera': [-1, 0, 0, 0],
+        'grill_trash_can': [0,0,1,1], 'beer_bottle': [0, 0, 1, -1]}
+
 test_set = ['mug', 'long_sofa', 'camera', 'grill_trash_can', 'beer_bottle']
 
 class SawyerRigMultiobjV0(SawyerBaseEnv):
@@ -26,7 +29,8 @@ class SawyerRigMultiobjV0(SawyerBaseEnv):
                  success_threshold=0.08,
                  transpose_image=False,
                  invisible_robot=False,
-                 object_subset='all',
+                 test_env=False,
+                 object_subset='train',
                  use_bounding_box=True,
                  random_color_p=0.5,
                  quat_dict={},
@@ -67,22 +71,30 @@ class SawyerRigMultiobjV0(SawyerBaseEnv):
         self.image_length = np.prod(self.image_shape) * 3  # image has 3 channels
         self.random_color_p = random_color_p
         self.use_bounding_box = use_bounding_box
+        self.test_env = test_env
         self.object_subset = object_subset
         self._ddeg_scale = 5
         self.task = task
         self.DoF = DoF
 
+        if self.test_env:
+            if self.object_subset == 'train':
+                self.object_subset = 'long_sofa'
+            self.quat_dict = test_quat_dict
+            self.random_color_p = 0.0
+            self._randomize = False
+
         self.object_dict, self.scaling = self.get_object_info()
         self.curr_object = None
-        self._object_position_low = (.65, -0.15, -.3)
-        self._object_position_high = (.75, 0.15, -.3)
+        self._object_position_low = (.67, -0.1, -.3)
+        self._object_position_high = (.73, 0.1, -.3)
         self._goal_low = np.array([0.65,-0.15,-.34])
         self._goal_high = np.array([0.75,0.15,-0.22])
         self._fixed_object_position = np.array([.7, 0.0, -.3])
         self.start_obj_ind = 4 if (self.DoF == 3) else 8
         self.default_theta = bullet.deg_to_quat([180, 0, 0])
         self._success_threshold = success_threshold
-        self.obs_img_dim = obs_img_dim #+.15
+        self.obs_img_dim = obs_img_dim
         self._view_matrix_obs = bullet.get_view_matrix(
             target_pos=[.7, 0, -0.3], distance=0.3,
             yaw=90, pitch=-15, roll=0, up_axis_index=2)
@@ -90,6 +102,8 @@ class SawyerRigMultiobjV0(SawyerBaseEnv):
             self.obs_img_dim, self.obs_img_dim)
         self.dt = 0.1
         super().__init__(*args, **kwargs)
+        self._max_force = 100
+        self._action_scale = 0.05
 
     def get_object_info(self):
         complete_object_dict, scaling = metadata.obj_path_map, metadata.path_scaling_map
@@ -254,15 +268,37 @@ class SawyerRigMultiobjV0(SawyerBaseEnv):
 
     def enforce_bounding_box(self):
         object_pos = bullet.get_body_info(self._objects['obj'])['pos']
-        low, high = np.array(self._pos_low), np.array(self._pos_high)
-        #low, high = low - 0.15, high + 0.15
-        low[2], high[2] = low[2] - 0.15, high[2] + 0.15
+
+        adjustment = np.array([0.04, 0.03, 0.15])
+        low = np.array(self._pos_low) - adjustment
+        high = np.array(self._pos_high) + adjustment
         contained = (object_pos > low).all() and (object_pos < high).all()
 
         if not contained:
-            self.reset(change_object=False)
+            bullet.position_control(self._sawyer, self._end_effector,
+                np.array(self._pos_init), self.default_theta)
+            for i in range(3): self._simulate(np.array(self._pos_init), self.default_theta, -1)
+
+            p.removeBody(self._objects['obj'])
+            self.add_object(change_object=False)
+    # def enforce_bounding_box(self):
+    #     object_pos = bullet.get_body_info(self._objects['obj'])['pos']
+    #     low, high = np.array(self._pos_low), np.array(self._pos_high)
+    #     #low, high = low - 0.15, high + 0.15
+    #     low[2], high[2] = low[2] - 0.15, high[2] + 0.15
+    #     contained = (object_pos > low).all() and (object_pos < high).all()
+
+    #     if not contained:
+    #         self.reset(change_object=False)
 
     def step(self, *action):
+
+        # # TEMP TEMP TEMP #
+        # from PIL import Image
+        # img = Image.fromarray(np.uint8(self.fancy_render_obs()))
+        # self.gif.append(img)
+        # # TEMP TEMP TEMP #
+
         # Get positional information
         pos = bullet.get_link_state(self._sawyer, self._end_effector, 'pos')
         curr_angle = bullet.get_link_state(self._sawyer, self._end_effector, 'theta')
@@ -396,6 +432,21 @@ class SawyerRigMultiobjV0(SawyerBaseEnv):
             return info['picked_up'] - 1
 
     def reset(self, change_object=True):
+        # # TEMP TEMP TEMP #
+        # try:
+        #     import skvideo
+        #     rand_num = 2
+        #     filepath = '/home/ashvin/data/sasha/fancy_videos/{0}_rollout.mp4'.format(rand_num)
+        #     outputdata = np.stack(self.gif)
+        #     skvideo.io.vwrite(filepath, outputdata)
+        #     self.gif[0].save('/home/ashvin/data/sasha/fancy_videos/{0}_rollout.gif'.format(rand_num),
+        #                format='GIF', append_images=self.gif[:],
+        #                save_all=True, duration=100, loop=0)
+        # except AttributeError:
+        #     if change_object:
+        #         self.gif = []
+        # # TEMP TEMP TEMP #
+
         # Load Enviorment
         bullet.reset()
         bullet.setup_headless(self._timestep, solver_iterations=self._solver_iterations)
@@ -412,12 +463,34 @@ class SawyerRigMultiobjV0(SawyerBaseEnv):
         action = np.array([0 for i in range(self.DoF)] + [-1])
         for _ in range(3):
             self.step(action)
+
+        # # TEMP TEMP TEMP #
+        # if change_object:
+        #     self.gif = []
+        # # TEMP TEMP TEMP #
+
         return self.get_observation()
 
     def format_obs(self, obs):
         if len(obs.shape) == 1:
             return obs.reshape(1, -1)
         return obs
+
+    def fancy_render_obs(self):
+        fancy_obs_dim = 256
+        fancy_projection_matrix_obs = bullet.get_projection_matrix(
+            fancy_obs_dim, fancy_obs_dim)
+
+        img, depth, segmentation = bullet.render(
+            fancy_obs_dim, fancy_obs_dim, self._view_matrix_obs,
+            fancy_projection_matrix_obs, shadow=0, gaussian_width=0)
+        if self._transpose_image:
+            img = np.transpose(img, (2, 0, 1))
+        return img
+
+    def fancy_get_image(self, width, height):
+        image = np.float32(self.fancy_render_obs())
+        return image
 
     def compute_reward_pu(self, obs, actions, next_obs, contexts):
         obj_state = self.format_obs(next_obs['state_observation'])[:, self.start_obj_ind:self.start_obj_ind + 3]
@@ -491,3 +564,67 @@ class SawyerRigMultiobjV0(SawyerBaseEnv):
             )
 
         return obs_dict
+
+    def demo_reset(self):
+        self.grip = -1.
+        self.done = False
+        reset_obs = self.reset()
+        return reset_obs
+
+    def get_demo_action(self):
+        action, done = self.move_obj(self.goal_pos)
+        self.done = done or self.done
+        action = np.append(action, [self.grip])
+        action = np.random.normal(action, 0.1)
+        action = np.clip(action, a_min=-1, a_max=1)
+        return action
+
+
+    def move_obj(self, goal):
+        ee_pos = self.get_end_effector_pos()
+        adjustment = np.array([0.00, 0.015, 0])
+        target_pos = np.array(bullet.get_body_info(self._objects['obj'], quat_to_deg=False)['pos']) +  adjustment
+        aligned = np.linalg.norm(target_pos[:2] - ee_pos[:2]) < 0.055
+        enclosed = np.linalg.norm(target_pos[2] - ee_pos[2]) < 0.025
+        done = (np.linalg.norm(target_pos[:2] - goal[:2]) < 0.05) or self.done
+        above = ee_pos[2] >= -0.22
+
+        if not aligned and not above and not done:
+            #print('Stage 1')
+            action = np.array([0.,0., 1.])
+            self.grip = -1.
+        elif not aligned and not done:
+            #print('Stage 2')
+            action = (target_pos - ee_pos) * 3.0
+            action[2] = 0.
+            action *= 2.0
+            self.grip = -1.
+        elif aligned and not enclosed and not done:
+            #print('Stage 3')
+            action = target_pos - ee_pos
+            action[2] -= 0.03
+            action *= 3.0
+            action[2] *= 1.5
+            self.grip = -1.
+        elif enclosed and self.grip < 1 and not done:
+            #print('Stage 4')
+            action = target_pos - ee_pos
+            action[2] -= 0.03
+            action *= 3.0
+            action[2] *= 2.0
+            self.grip += 0.5
+        elif not above and not done:
+            #print('Stage 5')
+            action = np.array([0.,0., 1.])
+            self.grip = 1.
+        elif not done:
+            #print('Stage 6')
+            action = goal - ee_pos
+            action[2] = 0
+            action *= 3.0
+            self.grip = 1.
+        else:
+            #print('Stage 7')
+            action = np.array([0.,0.,0.])
+            self.grip = -1
+        return action, done

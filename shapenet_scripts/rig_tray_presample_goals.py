@@ -4,7 +4,6 @@ import pickle as pkl
 from tqdm import tqdm
 from rlkit.envs.images import EnvRenderer, InsertImageEnv
 import rlkit.torch.pytorch_util as ptu
-from rlkit.envs.encoder_wrappers import VQVAEWrappedEnv
 import os
 from PIL import Image
 import argparse
@@ -17,9 +16,9 @@ parser.add_argument("--video_save_frequency", type=int,
 parser.add_argument("--gui", dest="gui", action="store_true", default=False)
 
 args = parser.parse_args()
-
-data_save_path = "/home/ashvin/data/rail-khazatsky/sasha/presampled_goals/affordances/combined/tray_goals.pkl"
-env = roboverse.make('SawyerRigMultiobjTray-v0', test_env=True)
+object_name = 'mug' #mug
+data_save_path = "/home/ashvin/data/rail-khazatsky/sasha/presampled_goals/affordances/combined/{0}_goals.pkl".format(object_name)
+env = roboverse.make('SawyerRigMultiobjTray-v0', test_env=True, object_subset=[object_name])
 
 
 obs_dim = env.observation_space.spaces['state_achieved_goal'].low.size
