@@ -56,6 +56,7 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
                  env_type=None,
                  DoF=3,
                  n_tasks=1,
+                 fixed_tasks=None,
                  *args,
                  **kwargs
                  ):
@@ -136,7 +137,7 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
         self._pos_high = [0.85,0.2,-0.1]
 
         self._task = task
-        self.tasks = self.sample_tasks(n_tasks)
+        self.tasks = fixed_tasks or self.sample_tasks(n_tasks)
 
     def get_object_info(self):
         complete_object_dict, scaling = metadata.obj_path_map, metadata.path_scaling_map
@@ -159,18 +160,87 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
         return object_dict, scaling
 
     def sample_environment(self):
+        # what objects are in the scene
         adict = affordance_dict.copy()
-        if (np.random.uniform() < 0.5) or self.test_env:
+        if np.random.uniform() < 0.5:
             adict['side_sign'] = 1.0
-        if (np.random.uniform() < 0.5) or self.test_env:
+        if np.random.uniform() < 0.5:
             adict['drawer_open'] = True
 
-        adict['drawer'] = np.random.uniform() < self.spawn_prob
         adict['drawer'] = np.random.uniform() < self.spawn_prob
         adict['handle_drawer'] = np.random.uniform() < self.spawn_prob
         adict['button'] = np.random.uniform() < self.spawn_prob
         adict['tray'] = np.random.uniform() < self.spawn_prob
         adict['rand_obj'] = np.random.uniform() < self.spawn_prob
+
+        # where things are placed
+        # Tray
+        tray_pos = None
+        s = adict['side_sign']
+        if adict['tray']:
+            back_left = [0.6, s * -0.15, -.35]
+            back_right = [0.6, s * 0.15, -.35]
+            front_left = [0.79, s * -0.12, -.35]
+            front_right = [0.79, s * 0.12, -.35]
+
+            issue_catch = adict['handle_drawer'] and not adict['drawer']
+            if self.test_env and (not adict['drawer']):
+                tray_pos = front_right
+            elif self.test_env and issue_catch:
+                tray_pos = front_left
+            elif self.test_env:
+                tray_pos = back_left
+            elif adict['drawer']:
+                tray_pos = random.choice([back_left, front_left])
+            elif adict['handle_drawer']:
+                tray_pos = random.choice([front_left, front_right])
+            elif adict['button']:
+                tray_pos = random.choice([back_left, front_left, front_right])
+            else:
+                tray_pos = random.choice([back_left, back_right, front_left, front_right])
+        adict['tray_pos'] = tray_pos
+
+        # Rand obj
+        obj_pos = None
+        if adict['rand_obj']:
+            back_left = np.array([0.6, s * -0.15, -.25])
+            back_right = np.array([0.6, s * 0.15, -.25])
+            front_left = np.array([.78, s * -0.12, -.25])
+            front_right =  np.array([.78, s * 0.12, -.25])
+            if self.test_env or adict['drawer'] or adict['handle_drawer']:
+                obj_pos = front_left
+            elif adict['button']:
+                obj_pos = random.choice([back_left, front_left, front_right])
+            else:
+                obj_pos = random.choice([back_left, back_right, front_left, front_right])
+        adict['obj_pos'] = obj_pos
+
+        # what colors objects are
+        adict['drawer_color'] = self.sample_object_color()
+        adict['handle_drawer_color'] = self.sample_object_color()
+        adict['button_color'] = self.sample_object_color()
+        adict['tray_color'] = self.sample_object_color()
+
+        # what the agent is rewarded for
+        potential_tasks = ["move_hand"]
+        potential_tasks.append("move_lego")
+        if adict['handle_drawer']:
+            potential_tasks.append("open_handle_drawer")
+            # potential_tasks.append("close_handle_drawer")
+        if adict['button']:
+            potential_tasks.append("press_button")
+            if adict['drawer']:
+                potential_tasks.append("open_button_drawer")
+                # potential_tasks.append("close_button_drawer")
+        if adict['rand_obj']:
+            potential_tasks.append("move_obj")
+            # potential_tasks.append("pickup_obj")
+            # potential_tasks.append("push_obj")
+            # potential_tasks.append("touch_obj")
+            if adict['tray']:
+                potential_tasks.append("obj_in_tray")
+
+        adict['aim'] = random.choice(potential_tasks)
         return adict
 
     def sample_tasks(self, n):
@@ -235,10 +305,12 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
         # Drawer
         if self.affordance_dict['drawer']:
             self._bottom_drawer = bullet.objects.drawer_no_handle(
-                    pos=np.array([0.6, s * 0.125, -.34]), rgba=self.sample_object_color())
+                    pos=np.array([0.6, s * 0.125, -.34]), rgba=self.affordance_dict['drawer_color'])
             self._objects['lego'] = bullet.objects.drawer_lego(pos=self.init_lego_pos)
             if self.affordance_dict['drawer_open']:
                 open_drawer(self._bottom_drawer)
+            else:
+                close_drawer(self._bottom_drawer)
             self.init_drawer_pos = get_drawer_bottom_pos(self._bottom_drawer)[0]
 
         # Handle drawer
@@ -247,10 +319,10 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
 
             if self.affordance_dict['drawer']:
                 self._top_drawer = bullet.objects.drawer(quat=quat, pos=np.array([0.6, s * 0.125, -.22]),
-                    rgba=self.sample_object_color())
+                    rgba=self.affordance_dict['handle_drawer_color'])
             else:
                 self._top_drawer = bullet.objects.drawer(quat=quat, pos=np.array([0.6, s * 0.125, -.34]),
-                    rgba=self.sample_object_color())
+                    rgba=self.affordance_dict['handle_drawer_color'])
             self.init_handle_pos = get_drawer_handle_pos(self._top_drawer)[1]
 
         # Button
@@ -263,47 +335,18 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
             else:
                 pos = np.array([0.6, s * 0.125, -.34])
 
-            self._objects['button'] = bullet.objects.button(pos=pos, rgba=self.sample_object_color())
+            self._objects['button'] = bullet.objects.button(pos=pos, rgba=self.affordance_dict['button_color'])
             self.init_button_height = get_button_cylinder_pos(self._objects['button'])[2]
             self.button_used = False
 
         # Tray
         if self.affordance_dict['tray']:
-            back_left = [0.6, s * -0.15, -.35]
-            back_right = [0.6, s * 0.15, -.35]
-            front_left = [0.79, s * -0.12, -.35]
-            front_right = [0.79, s * 0.12, -.35]
-
-            issue_catch = self.affordance_dict['handle_drawer'] and not self.affordance_dict['drawer']
-            if self.test_env and (not self.affordance_dict['drawer']):
-                tray_pos = front_right
-            elif self.test_env and issue_catch:
-                tray_pos = front_left
-            elif self.test_env:
-                tray_pos = back_left
-            elif self.affordance_dict['drawer']:
-                tray_pos = random.choice([back_left, front_left])
-            elif self.affordance_dict['handle_drawer']:
-                tray_pos = random.choice([front_left, front_right])
-            elif self.affordance_dict['button']:
-                tray_pos = random.choice([back_left, front_left, front_right])
-            else:
-                tray_pos = random.choice([back_left, back_right, front_left, front_right])
-
-            self.tray = bullet.objects.drawer_tray(pos=tray_pos, rgba=self.sample_object_color())
+            tray_pos = self.affordance_dict['tray_pos']
+            self.tray = bullet.objects.drawer_tray(pos=tray_pos, rgba=self.affordance_dict['tray_color'])
 
         # Rand obj
         if self.affordance_dict['rand_obj']:
-            back_left = np.array([0.6, s * -0.15, -.25])
-            back_right = np.array([0.6, s * 0.15, -.25])
-            front_left = np.array([.78, s * -0.12, -.25])
-            front_right =  np.array([.78, s * 0.12, -.25])
-            if self.test_env or self.affordance_dict['drawer'] or self.affordance_dict['handle_drawer']:
-                self._fixed_object_position = front_left
-            elif self.affordance_dict['button']:
-                self._fixed_object_position = random.choice([back_left, front_left, front_right])
-            else:
-                self._fixed_object_position = random.choice([back_left, back_right, front_left, front_right])
+            self._fixed_object_position = self.affordance_dict['obj_pos']
             self.add_object()
 
         self._workspace = bullet.Sensor(self._sawyer,
@@ -686,25 +729,50 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
             if self.affordance_dict['drawer']: print('Bottom Drawer: ', bd_success)
             if self.affordance_dict['handle_drawer']: print('Top Drawer: ', td_success)
             if self.affordance_dict['button']: print('Button: ', button_success)
-        reward = rand_obj_success + lego_success + (bd_success or button_success) + td_success + hand_success
+        # reward = rand_obj_success + lego_success + (bd_success or button_success) + td_success + hand_success
+
+        if self.affordance_dict['aim'] == "move_hand":
+            reward = hand_success
+        elif self.affordance_dict['aim'] == "move_lego":
+            reward = lego_success
+        elif self.affordance_dict['aim'] == "open_handle_drawer":
+            reward = td_success
+        # elif self.affordance_dict['aim'] == "close_handle_drawer":
+        #     reward = td_success
+        elif self.affordance_dict['aim'] == "press_button":
+            reward = button_success
+        elif self.affordance_dict['aim'] == "open_button_drawer":
+            reward = td_success
+        # elif self.affordance_dict['aim'] == "close_button_drawer":
+        #     reward = td_success
+        elif self.affordance_dict['aim'] == "move_obj":
+            reward = rand_obj_success
+        elif self.affordance_dict['aim'] == "obj_in_tray":
+            reward = rand_obj_success
+        else:
+            print(self.affordance_dict['aim'])
+
         return reward
 
     def sample_goals(self):
-        self.obj_goal = np.random.uniform(low=self._goal_low, high=self._goal_high)
-        self.lego_goal = np.random.uniform(low=self._goal_low, high=self._goal_high)
-        self.hand_goal = np.random.uniform(low=self._pos_low, high=self._pos_high)
+        center = (np.array(self._pos_low) + np.array(self._pos_high)) / 2 # middle of the workspace
+        self.obj_goal = center
+        self.lego_goal = center
+        self.hand_goal = center
         self.hand_goal[2] = -0.11
         s = self.affordance_dict['side_sign']
 
         if self.affordance_dict['drawer']:
             ld_pos = self.get_object_pos('bottom_drawer') - self.affordance_dict['drawer_open'] * np.array([0.15, 0, 0])
-            is_open = np.random.uniform() < 0.5
+            is_open = True # self.affordance_dict['aim'] == 'open_button_drawer' # np.random.uniform() < 0.5
             self.bd_goal = (ld_pos + np.array([0.15, 0, 0])) if is_open else ld_pos
         else:
             self.bd_goal = np.zeros(3)
 
         if self.affordance_dict['handle_drawer']:
             td_pos = self.get_object_pos('drawer_handle')
+            # is_open = self.affordance_dict['aim'] == 'open_handle_drawer'
+            # if is_open:
             if s == 1:
                 low, high = td_pos - np.array([0, 0.18, 0]), td_pos - np.array([0, 0.05, 0])
             else:
@@ -714,7 +782,7 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
             self.td_goal = np.zeros(3)
 
         if self.affordance_dict['button']:
-            press = np.random.uniform() < 0.5
+            press = True # self.affordance_dict['aim'] == 'press_button' # np.random.uniform() < 0.5
             self.button_goal = (self.init_button_height - 0.01) if press else self.init_button_height
         else:
             self.button_goal = 0
@@ -880,20 +948,18 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
         if self.affordance_dict['button']:
             options.append('button')
 
-        remaining_tasks = [opt for opt in options if opt not in self.tasks_done_names]
-        if len(remaining_tasks) > 0:
-            return random.choice(remaining_tasks)
+        # remaining_tasks = [opt for opt in options if opt not in self.tasks_done_names]
+        # if len(remaining_tasks) > 0:
+        #     return random.choice(remaining_tasks)
 
         if self.affordance_dict['drawer'] and self.affordance_dict['drawer_open']:
             options.append('lego')
         if self.affordance_dict['rand_obj']:
             options.append('rand_obj')
 
-
         remaining_tasks = [opt for opt in options if opt not in self.tasks_done_names]
-        if len(remaining_tasks) == 0: remaining_tasks.append('hand')
+        remaining_tasks.append('hand')
         sampled_task = random.choice(remaining_tasks)
-        # print('Current Task: ' + sampled_task)
         return sampled_task
 
     def get_demo_action(self):

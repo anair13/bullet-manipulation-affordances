@@ -3,7 +3,7 @@ import numpy as np
 import pickle as pkl
 from tqdm import tqdm
 from roboverse.utils.renderer import EnvRenderer, InsertImageEnv
-from roboverse.bullet.misc import quat_to_deg 
+from roboverse.bullet.misc import quat_to_deg
 import os
 from PIL import Image
 import math
@@ -23,6 +23,7 @@ prefix = "/home/ashvin/data/sasha/demos"
 # prefix = "/home/ashvin/data/rail-khazatsky/sasha/affordances/combined/"
 demo_data_save_path = prefix + args.name + "_demos"
 recon_data_save_path = prefix + args.name + "_images.npy"
+video_save_path = prefix + args.name + "_video"
 
 state_env = roboverse.make('SawyerRigAffordances-v0', random_color_p=0.0)
 
@@ -83,6 +84,13 @@ for j in tqdm(range(args.num_trajectories)):
 
     demo_dataset.append(trajectory)
     avg_tasks_done += env.tasks_done
+
+    if args.video_save_frequency > 0 and i % args.video_save_frequency == 0:
+        fpath = '{}/{}.gif'.format(video_save_path, i)
+        images[0].save(fpath,
+                       format='GIF', append_images=images[1:],
+                       save_all=True, duration=100, loop=0)
+        print("saved", fpath)
 
     if ((j + 1) % 500) == 0:
         curr_name = demo_data_save_path + '_{0}.pkl'.format(num_datasets)
