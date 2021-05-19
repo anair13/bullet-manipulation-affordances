@@ -223,6 +223,7 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
         adict['handle_drawer_color'] = self.sample_object_color()
         adict['button_color'] = self.sample_object_color()
         adict['tray_color'] = self.sample_object_color()
+        adict['lego_color'] = self.sample_object_color()
 
         # what the agent is rewarded for
         potential_tasks = ["move_hand"]
@@ -308,9 +309,10 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
 
         # Drawer
         if self.affordance_dict['drawer']:
-            self._bottom_drawer = bullet.objects.drawer_no_handle(
+            self._bottom_drawer = bullet.objects.drawer_no_handle_no_randomize(
                     pos=np.array([0.6, s * 0.125, -.34]), rgba=self.affordance_dict['drawer_color'])
-            self._objects['lego'] = bullet.objects.drawer_lego(pos=self.init_lego_pos)
+            self._objects['lego'] = bullet.objects.drawer_lego(
+                    pos=self.init_lego_pos) # , rgba=self.affordance_dict['lego_color'])
             if self.affordance_dict['drawer_open']:
                 open_drawer(self._bottom_drawer)
             else:

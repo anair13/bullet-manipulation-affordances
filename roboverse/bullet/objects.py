@@ -130,6 +130,17 @@ button = loader_randomize_color(ASSET_PATH, os.path.join(obj_dir, "button", "but
               pos=drawer_pos + np.array([0, 0, 0.2]),
               scale=0.25)
 
+drawer_no_randomize = loader(ASSET_PATH, os.path.join(obj_dir, "drawer", "drawer.urdf"),
+              pos=drawer_pos + np.array([0, 0, 0.12]),
+              scale=0.125)
+drawer_no_handle_no_randomize = loader(ASSET_PATH, os.path.join(obj_dir, "drawer", "drawer_no_handle.urdf"),
+              pos=drawer_pos,
+              deg=[0,0,90],
+              scale=0.125)
+button_no_randomize = loader(ASSET_PATH, os.path.join(obj_dir, "button", "button.urdf"),
+              pos=drawer_pos + np.array([0, 0, 0.2]),
+              scale=0.25)
+
 drawer_lego = loader(PDATA_PATH, 'lego/lego.urdf',
               pos=drawer_pos + np.array([-0.01, 0, 0.03]),
               quat=[0, 0, 1, 0],
