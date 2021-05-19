@@ -19,7 +19,7 @@ parser.add_argument("--video_save_frequency", type=int,
                     default=0, help="Set to zero for no video saving")
 
 args = parser.parse_args()
-prefix = "/media/ashvin/data2/s3doodad/ssmrl/bullet/state/v2/"
+prefix = "/media/ashvin/data2/s3doodad/ssmrl/bullet/state/v3/"
 if not os.path.exists(prefix):
     os.makedirs(prefix)
 
@@ -28,9 +28,9 @@ tasks = pkl.load(open(tasks_file, "rb"))
 
 for task_id in range(len(tasks)):
     # prefix = "/home/ashvin/data/rail-khazatsky/sasha/affordances/combined/"
-    demo_data_save_path = prefix + args.name + "_demos_%d" % task_id
-    recon_data_save_path = prefix + args.name + "_%d_images.npy" % task_id
-    video_save_path = prefix + args.name + "_%d_video" % task_id
+    demo_data_save_path = prefix + args.name + "_demos_%d.pkl" % task_id
+    recon_data_save_path = prefix + args.name + "_images_%d.npy" % task_id
+    video_save_path = prefix + args.name + "_video_%d" % task_id
     if not os.path.exists(video_save_path) and args.video_save_frequency > 0:
         os.makedirs(video_save_path)
     print("creating", demo_data_save_path)
@@ -106,14 +106,12 @@ for task_id in range(len(tasks)):
                            format='GIF', append_images=images[1:],
                            save_all=True, duration=100, loop=0)
 
-        if ((j + 1) % 500) == 0:
-            curr_name = demo_data_save_path + '_{0}.pkl'.format(num_datasets)
-            file = open(curr_name, 'wb')
-            pkl.dump(demo_dataset, file)
-            file.close()
+    file = open(demo_data_save_path, 'wb')
+    pkl.dump(demo_dataset, file)
+    file.close()
 
-            num_datasets += 1
-            demo_dataset = []
+    num_datasets += 1
+    demo_dataset = []
 
 
     print('Success Rate: {}'.format(avg_tasks_done / args.num_trajectories))

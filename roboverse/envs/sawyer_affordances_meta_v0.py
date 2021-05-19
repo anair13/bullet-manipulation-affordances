@@ -138,6 +138,9 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
 
         self._task = task
         self.tasks = fixed_tasks or self.sample_tasks(n_tasks)
+        if type(self.tasks) is str:
+            from rlkit.misc.asset_loader import load_local_or_remote_file
+            self.tasks = load_local_or_remote_file(self.tasks)
 
     def get_object_info(self):
         complete_object_dict, scaling = metadata.obj_path_map, metadata.path_scaling_map
@@ -223,22 +226,23 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
 
         # what the agent is rewarded for
         potential_tasks = ["move_hand"]
-        potential_tasks.append("move_lego")
+        # potential_tasks.append("move_lego")
         if adict['handle_drawer']:
             potential_tasks.append("open_handle_drawer")
             # potential_tasks.append("close_handle_drawer")
         if adict['button']:
-            potential_tasks.append("press_button")
+            # potential_tasks.append("press_button")
             if adict['drawer']:
                 potential_tasks.append("open_button_drawer")
                 # potential_tasks.append("close_button_drawer")
         if adict['rand_obj']:
-            potential_tasks.append("move_obj")
+            # potential_tasks.append("move_obj")
             # potential_tasks.append("pickup_obj")
             # potential_tasks.append("push_obj")
             # potential_tasks.append("touch_obj")
             if adict['tray']:
-                potential_tasks.append("obj_in_tray")
+                pass
+                # potential_tasks.append("obj_in_tray")
 
         adict['aim'] = random.choice(potential_tasks)
         return adict
@@ -516,7 +520,7 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
             sign = 1 if is_open else -1
             if self.affordance_dict['drawer']:
                 slide_drawer(self._bottom_drawer, sign)
-                self.affordance_dict['drawer_open'] = not is_open
+                # self.affordance_dict['drawer_open'] = not is_open
 
         # Reset if bounding box is violated
         if self.use_bounding_box:
@@ -742,7 +746,7 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
         elif self.affordance_dict['aim'] == "press_button":
             reward = button_success
         elif self.affordance_dict['aim'] == "open_button_drawer":
-            reward = td_success
+            reward = bd_success
         # elif self.affordance_dict['aim'] == "close_button_drawer":
         #     reward = td_success
         elif self.affordance_dict['aim'] == "move_obj":
@@ -752,7 +756,7 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
         else:
             print(self.affordance_dict['aim'])
 
-        return reward
+        return reward - 1
 
     def sample_goals(self):
         center = (np.array(self._pos_low) + np.array(self._pos_high)) / 2 # middle of the workspace
@@ -979,7 +983,7 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
 
     def move_hand(self):
         ee_pos = self.get_end_effector_pos()
-        above = ee_pos[2] >= -0.105
+        above = ee_pos[2] >= -0.2
         self.grip = -1.
         done = 0
 
