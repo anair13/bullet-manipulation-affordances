@@ -123,7 +123,7 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
         self._success_threshold = success_threshold
         self.obs_img_dim = obs_img_dim #+.15
         self._view_matrix_obs = bullet.get_view_matrix(
-            target_pos=[.7, 0, -0.25], distance=1,
+            target_pos=[.7, 0, -0.25], distance=0.425,
             yaw=90, pitch=-37, roll=0, up_axis_index=2)
         self._projection_matrix_obs = bullet.get_projection_matrix(
             self.obs_img_dim, self.obs_img_dim)
