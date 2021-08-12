@@ -115,7 +115,8 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         self._fixed_object_position = np.array([.8, -0.12, -.25])
         self._reset_lego_position = np.array([.775, 0.125, -.25])
         self.init_lego_pos = np.array([0.59, 0.125, -0.31])
-        self.start_obj_ind = 4 if (self.DoF == 3) else 8
+        # self.start_obj_ind = 4 if (self.DoF == 3) else 8
+        self.start_obj_ind = 10 if (env_type == 'bottom_drawer') else 11
         self.default_theta = bullet.deg_to_quat([180, 0, 0])
         self._success_threshold = success_threshold
         self.obs_img_dim = obs_img_dim #+.15
@@ -206,7 +207,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         self._objects = {}
         self._sensors = {}
         self.sample_enviorment()
-        
+
         s = self.affordance_dict['side_sign']
         self._pos_init = [0.6, s * -0.15, -0.2]
         self._reset_lego_position = np.array([.775, s * 0.125, -.25])
@@ -240,7 +241,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
                 self._top_drawer = bullet.objects.drawer(quat=quat, pos=np.array([0.6, s * 0.125, -.34]),
                     rgba=self.sample_object_color())
             self.init_handle_pos = get_drawer_handle_pos(self._top_drawer)[1]
-                
+
         # Button
         if self.affordance_dict['button']:
             num_drawers = self.affordance_dict['handle_drawer'] + self.affordance_dict['drawer']
@@ -364,7 +365,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
                 delta_pos, delta_yaw, gripper = action[0], action[1], action[2]
             else:
                 raise RuntimeError('Unrecognized action: {}'.format(action))
-            
+
             delta_angle = [0, 0, delta_yaw[0]]
             return np.array(delta_pos), np.array(delta_angle), gripper
         else:
@@ -405,7 +406,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
             contained_lego = self.check_obj_bounding_box(self._objects['lego'])
         else:
             contained_lego = True
-        
+
         if not contained_obj or not contained_lego:
             bullet.position_control(self._sawyer, self._end_effector,
                 np.array(self._pos_init), self.default_theta)
@@ -433,7 +434,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         pos = bullet.get_link_state(self._sawyer, self._end_effector, 'pos')
         curr_angle = bullet.get_link_state(self._sawyer, self._end_effector, 'theta')
         default_angle = quat_to_deg(self.default_theta)
-    
+
         # Keep necesary degrees of theta fixed
         if self.DoF == 3:
             angle = default_angle
@@ -485,7 +486,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
 
         if self.affordance_dict['rand_obj']:
             info['rand_obj_picked_up'] = rand_obj_pos[2] > self.pickup_eps
-        
+
         if self.affordance_dict['drawer']:
             info['lego_picked_up'] = lego_pos[2] > self.pickup_eps
 
@@ -531,7 +532,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         diagnostics = OrderedDict()
         state_key = "state_observation"
         goal_key = "state_desired_goal"
-        
+
         hand_success_list = []
         rand_obj_success_list = []
         lego_success_list = []
@@ -598,7 +599,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
             for j in range(len(paths[i]["observations"])):
                 curr_obs = paths[i]["observations"][j][state_key]
                 goal_obs = contexts[i][goal_key]
-                
+
                 hand_success, hand_present = self.get_success_metric(curr_obs, goal_obs,
                     key='hand', success_list=hand_success_list)
                 rand_obj_success, rand_obj_present = self.get_success_metric(curr_obs, goal_obs,
@@ -690,7 +691,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
             self.bd_goal = (ld_pos + np.array([0.15, 0, 0])) if is_open else ld_pos
         else:
             self.bd_goal = np.zeros(3)
-        
+
         if self.affordance_dict['handle_drawer']:
             td_pos = self.get_object_pos('drawer_handle')
             if s == 1:
@@ -761,13 +762,19 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         if len(obs.shape) == 1:
             return obs.reshape(1, -1)
         return obs
-    
+
     def compute_reward_gr(self, obs, actions, next_obs, contexts):
-        obj_state = self.format_obs(next_obs['state_observation'])[:, self.start_obj_ind:self.start_obj_ind + 3]
-        obj_goal = self.format_obs(contexts['state_desired_goal'])[:, self.start_obj_ind:self.start_obj_ind + 3]
+        obj_state = self.format_obs(next_obs['state_observation'])[:, self.start_obj_ind:self.start_obj_ind + 1]
+        obj_goal = self.format_obs(contexts['state_desired_goal'])[:, self.start_obj_ind:self.start_obj_ind + 1]
         object_goal_distance = np.linalg.norm(obj_state - obj_goal, axis=1)
         object_goal_success = object_goal_distance < self._success_threshold
         return object_goal_success - 1
+    # def compute_reward_gr(self, obs, actions, next_obs, contexts):
+    #     obj_state = self.format_obs(next_obs['state_observation'])[:, self.start_obj_ind:self.start_obj_ind + 3]
+    #     obj_goal = self.format_obs(contexts['state_desired_goal'])[:, self.start_obj_ind:self.start_obj_ind + 3]
+    #     object_goal_distance = np.linalg.norm(obj_state - obj_goal, axis=1)
+    #     object_goal_success = object_goal_distance < self._success_threshold
+    #     return object_goal_success - 1
 
     def compute_reward(self, obs, actions, next_obs, contexts):
         return self.compute_reward_gr(obs, actions, next_obs, contexts)
@@ -871,7 +878,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         remaining_tasks = [opt for opt in options if opt not in self.tasks_done_names]
         if len(remaining_tasks) > 0:
             return random.choice(remaining_tasks)
-            
+
         if self.affordance_dict['drawer'] and self.affordance_dict['drawer_open']:
             options.append('lego')
         if self.affordance_dict['rand_obj']:
@@ -952,7 +959,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         return action, done
 
     def press_button(self):
-        done = self.button_used 
+        done = self.button_used
         ee_pos = self.get_end_effector_pos()
         target_pos = self.get_object_pos('button') + np.array([0.00, 0.0015, 0])
         aligned = np.linalg.norm(target_pos[:2] - ee_pos[:2]) < 0.05

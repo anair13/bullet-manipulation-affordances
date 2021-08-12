@@ -47,7 +47,7 @@ class SawyerBaseEnv(gym.Env, Serializable):
         self._projection_matrix = bullet.get_projection_matrix(self._img_dim, self._img_dim)
 
     def get_params(self):
-        labels = ['_action_scale', '_action_repeat', 
+        labels = ['_action_scale', '_action_repeat',
                   '_timestep', '_solver_iterations',
                   '_gripper_bounds', '_pos_low', '_pos_high', '_id']
         params = {label: getattr(self, label) for label in labels}
@@ -56,7 +56,7 @@ class SawyerBaseEnv(gym.Env, Serializable):
     @property
     def parallel(self):
         return False
-    
+
     def check_params(self, other):
         params = self.get_params()
         assert set(params.keys()) == set(other.keys())
@@ -170,9 +170,9 @@ class SawyerBaseEnv(gym.Env, Serializable):
     def _simulate(self, pos, theta, gripper):
         for _ in range(self._action_repeat):
             bullet.sawyer_position_ik(
-                self._sawyer, self._end_effector, 
+                self._sawyer, self._end_effector,
                 pos, theta,
-                gripper, gripper_bounds=self._gripper_bounds, 
+                gripper, gripper_bounds=self._gripper_bounds,
                 discrete_gripper=False, max_force=self._max_force
             )
             bullet.step_ik()

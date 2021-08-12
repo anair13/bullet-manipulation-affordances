@@ -57,6 +57,7 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
                  DoF=3,
                  n_tasks=1,
                  fixed_tasks=None,
+                 subset_tasks=None,
                  *args,
                  **kwargs
                  ):
@@ -122,7 +123,7 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
         self._success_threshold = success_threshold
         self.obs_img_dim = obs_img_dim #+.15
         self._view_matrix_obs = bullet.get_view_matrix(
-            target_pos=[.7, 0, -0.25], distance=0.425,
+            target_pos=[.7, 0, -0.25], distance=1,
             yaw=90, pitch=-37, roll=0, up_axis_index=2)
         self._projection_matrix_obs = bullet.get_projection_matrix(
             self.obs_img_dim, self.obs_img_dim)
@@ -141,6 +142,8 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
         if type(self.tasks) is str:
             from rlkit.misc.asset_loader import load_local_or_remote_file
             self.tasks = load_local_or_remote_file(self.tasks)
+        if subset_tasks:
+            self.tasks = self.tasks[:subset_tasks]
 
     def get_object_info(self):
         complete_object_dict, scaling = metadata.obj_path_map, metadata.path_scaling_map
@@ -227,23 +230,23 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
 
         # what the agent is rewarded for
         potential_tasks = ["move_hand"]
-        # potential_tasks.append("move_lego")
+        potential_tasks.append("move_lego")
         if adict['handle_drawer']:
             potential_tasks.append("open_handle_drawer")
-            # potential_tasks.append("close_handle_drawer")
+            potential_tasks.append("close_handle_drawer")
         if adict['button']:
-            # potential_tasks.append("press_button")
+            potential_tasks.append("press_button")
             if adict['drawer']:
                 potential_tasks.append("open_button_drawer")
-                # potential_tasks.append("close_button_drawer")
+                potential_tasks.append("close_button_drawer")
         if adict['rand_obj']:
-            # potential_tasks.append("move_obj")
+            potential_tasks.append("move_obj")
             # potential_tasks.append("pickup_obj")
             # potential_tasks.append("push_obj")
             # potential_tasks.append("touch_obj")
             if adict['tray']:
-                pass
-                # potential_tasks.append("obj_in_tray")
+                # pass
+                potential_tasks.append("obj_in_tray")
 
         adict['aim'] = random.choice(potential_tasks)
         return adict
@@ -256,6 +259,9 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
 
     def get_all_task_idx(self):
         return range(len(self.tasks))
+
+    def set_task_idx(self, idx):
+        self.reset_task(idx)
 
     def reset_task(self, idx):
         try:
@@ -743,14 +749,14 @@ class SawyerAffordancesMetaV0(SawyerBaseEnv):
             reward = lego_success
         elif self.affordance_dict['aim'] == "open_handle_drawer":
             reward = td_success
-        # elif self.affordance_dict['aim'] == "close_handle_drawer":
-        #     reward = td_success
+        elif self.affordance_dict['aim'] == "close_handle_drawer":
+            reward = td_success
         elif self.affordance_dict['aim'] == "press_button":
             reward = button_success
         elif self.affordance_dict['aim'] == "open_button_drawer":
             reward = bd_success
-        # elif self.affordance_dict['aim'] == "close_button_drawer":
-        #     reward = td_success
+        elif self.affordance_dict['aim'] == "close_button_drawer":
+            reward = td_success
         elif self.affordance_dict['aim'] == "move_obj":
             reward = rand_obj_success
         elif self.affordance_dict['aim'] == "obj_in_tray":

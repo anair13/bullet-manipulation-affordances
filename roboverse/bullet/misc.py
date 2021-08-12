@@ -45,7 +45,7 @@ def connect_headless(gui=False):
 
 def setup(real_time=True, gravity=-10):
     '''
-        sets parameters for running pybullet 
+        sets parameters for running pybullet
         interactively
     '''
     p.setRealTimeSimulation(real_time)
@@ -54,7 +54,7 @@ def setup(real_time=True, gravity=-10):
 
 def setup_headless(timestep=1./240, solver_iterations=150, gravity=-10):
     '''
-        sets parameters for running pybullet 
+        sets parameters for running pybullet
         in a headless environment
     '''
     p.setPhysicsEngineParameter(numSolverIterations=solver_iterations)
@@ -84,7 +84,8 @@ def load_urdf_randomize_color(filepath, pos=[0, 0, 0], quat=[0, 0, 0, 1], scale=
             body = p.loadURDF(rand_filepath, globalScaling=scale)
             p.changeVisualShape(body, -1, rgbaColor=rgba)
         finally:
-            os.remove(rand_filepath)
+            pass
+            # os.remove(rand_filepath)
     else:
         body = p.loadURDF(filepath, globalScaling=scale)
 
@@ -126,7 +127,7 @@ def load_state(*loadpath):
 #### rendering functions ####
 #############################
 
-def get_view_matrix(target_pos=[.75, -.2, 0], distance=0.9, 
+def get_view_matrix(target_pos=[.75, -.2, 0], distance=0.9,
                     yaw=90, pitch=-20, roll=0, up_axis_index=2):
     view_matrix = p.computeViewMatrixFromYawPitchRoll(
         target_pos, distance, yaw, pitch, roll, up_axis_index)
@@ -137,7 +138,7 @@ def get_projection_matrix(height, width, fov=60, near_plane=0.1, far_plane=2):
     projection_matrix = p.computeProjectionMatrixFOV(fov, aspect, near_plane, far_plane)
     return projection_matrix
 
-def render(height, width, view_matrix, projection_matrix, 
+def render(height, width, view_matrix, projection_matrix,
            shadow=1, light_direction=[1,1,1], renderer=p.ER_BULLET_HARDWARE_OPENGL, gaussian_width=5):
     ## ER_BULLET_HARDWARE_OPENGL
     img_tuple = p.getCameraImage(width,
