@@ -14,7 +14,7 @@ Alexander Khazatsky*, Ashvin Nair*, Daniel Jing, Sergey Levine. International Co
 [Offline Meta-Reinforcement Learning with Online Self-Supervision](https://arxiv.org/abs/2107.03974)
 Vitchyr H. Pong, Ashvin Nair, Laura Smith, Catherine Huang, Sergey Levine. arXiv preprint, 2021.
 
-This repository extends https://github.com/avisingh599/roboverse which was developed by Avi Singh, Albert Yu, Jonathan Yang, Michael Janner, Huihan Liu, and Gaoyue Zhou.
+This repository extends https://github.com/avisingh599/roboverse which was developed by Avi Singh, Albert Yu, Jonathan Yang, Michael Janner, Huihan Liu, and Gaoyue Zhou. If you want to use ShapeNet objects, please download it from that repository: https://github.com/avisingh599/roboverse/tree/master/roboverse/assets/bullet-objects
 
 ## Setup
 `pip install -r requirements.txt`
