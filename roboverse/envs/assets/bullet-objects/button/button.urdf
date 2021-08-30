@@ -1,0 +1,83 @@
+<?xml version="0.0" ?>
+<robot name="button.urdf">
+  <material name="mainColor">
+    <color rgba=".98 .1 0 1"/>
+  </material>
+  <material name="white">
+    <color rgba="1. 1. 1. 1."/>
+  </material>
+
+  <link name="world"/>
+
+  <link name="base">
+    <contact>
+      <rolling_friction value="10.0"/>
+      <lateral_friction value="10.0"/>
+      <spinning_friction value="10.0"/>
+    </contact>
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.0 0.0 -.1"/>
+       <mass value="0.1"/>
+       <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 -.1"/>
+      <geometry>
+        <box size=".4 .4 .1"/>
+      </geometry>
+      <material name="white"/>
+    </visual>
+    <collision>
+      <!--Bottom --> 
+      <origin rpy="0 0 0" xyz="0 0 -.1"/>
+      <geometry>
+        <box size=".4 .4 .1"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="button">
+    <contact>
+      <rolling_friction value="1000.0"/>
+      <lateral_friction value="1000.0"/>
+      <spinning_friction value="1000.0"/>
+      <contact_cfm value="0.0"/>
+      <contact_erp value="1.0"/>
+    </contact>
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <cylinder radius="0.1" length="0.05"/>
+      <mass value=".1"/>
+      <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.1" length="0.05"/>
+      </geometry>
+      <material name="mainColor"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.1" length="0.05"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="base_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="world"/>
+    <child link="base"/>
+  </joint>
+
+  <joint name="base_button_joint" type="prismatic">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <axis rpy="0 0 0" xyz="0 0 1"/>
+    <parent link="base"/>
+    <child link="button"/>
+    <limit effort="100" lower="-0.05" upper="0.05" velocity="100"/>
+  </joint>
+
+</robot>
+
