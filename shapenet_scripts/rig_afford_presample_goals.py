@@ -4,7 +4,7 @@ import pickle as pkl
 from tqdm import tqdm
 from rlkit.envs.images import EnvRenderer, InsertImageEnv
 import rlkit.torch.pytorch_util as ptu
-from rlkit.envs.encoder_wrappers import VQVAEWrappedEnv
+#from rlkit.envs.encoder_wrappers import VQVAEWrappedEnv
 import os
 from PIL import Image
 import argparse
@@ -20,7 +20,8 @@ parser.add_argument("--gui", dest="gui", action="store_true", default=False)
 args = parser.parse_args()
 
 for env_type in ['top_drawer', 'bottom_drawer']:
-    data_save_path = "/home/ashvin/data/rail-khazatsky/sasha/presampled_goals/affordances/combined/" + env_type + "_goals.pkl"
+    data_save_path = "/2tb/home/patrickhaoy/data/affordances/combined_new/" + env_type + "_goals.pkl"
+    #data_save_path = "/home/ashvin/data/rail-khazatsky/sasha/presampled_goals/affordances/combined/" + env_type + "_goals.pkl"
     #data_save_path = "/home/ashvin/data/sasha/demos/affordances_" + env_type + "_goals.pkl"
     env = roboverse.make('SawyerRigAffordances-v0', test_env=True, env_type=env_type)
 

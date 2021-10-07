@@ -103,6 +103,12 @@ class SawyerRigMultiobjTrayV0(SawyerBaseEnv):
         self._projection_matrix_obs = bullet.get_projection_matrix(
             self.obs_img_dim, self.obs_img_dim)
         self.dt = 0.1
+
+        # Reset-free
+        self.reset_interval = kwargs.pop('reset_interval', 10)
+        self.reset_counter = self.reset_interval-1
+        self.expl = kwargs.pop('expl', False)
+
         super().__init__(*args, **kwargs)
         self._max_force = 100
         self._action_scale = 0.05
@@ -446,6 +452,13 @@ class SawyerRigMultiobjTrayV0(SawyerBaseEnv):
             return info['picked_up'] - 1
 
     def reset(self, change_object=True):
+        if self.expl:
+            self.reset_counter += 1
+            if self.reset_interval == self.reset_counter:
+                self.reset_counter = 0
+            else:
+                return self.get_observation()  
+
         # # TEMP TEMP TEMP #
         # try:
         #     import skvideo

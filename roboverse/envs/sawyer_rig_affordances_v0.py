@@ -126,6 +126,13 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         self._projection_matrix_obs = bullet.get_projection_matrix(
             self.obs_img_dim, self.obs_img_dim)
         self.dt = 0.1
+
+        # Reset-free
+        self.reset_interval = kwargs.pop('reset_interval', 10)
+        self.reset_counter = self.reset_interval-1
+        self.expl = kwargs.pop('expl', False)
+        self.prev_step_done = False
+
         super().__init__(*args, **kwargs)
 
         # Need to overwrite in some cases, registration isnt working
@@ -241,6 +248,8 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
                 self._top_drawer = bullet.objects.drawer(quat=quat, pos=np.array([0.6, s * 0.125, -.34]),
                     rgba=self.sample_object_color())
             self.init_handle_pos = get_drawer_handle_pos(self._top_drawer)[1]
+
+            open_drawer(self._top_drawer)
 
         # Button
         if self.affordance_dict['button']:
@@ -719,6 +728,12 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
                 [self.td_goal[1]], [self.button_goal]])
 
     def reset(self):
+        if self.expl:
+            self.reset_counter += 1
+            if self.reset_interval == self.reset_counter:
+                self.reset_counter = 0
+            else:
+                return self.get_observation()  
 
         # # TEMP TEMP TEMP #
         # try:
@@ -894,13 +909,18 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
     def get_demo_action(self):
         action, done = self.task_dict[self.curr_task]()
         if done:
-            #self.get_reward(print_stats=True)
-            self.tasks_done_names.append(self.curr_task)
-            self.curr_task = self.sample_task()
-            self.tasks_done += 1
+            if not self.prev_step_done:
+                #self.get_reward(print_stats=True)
+                self.tasks_done_names.append(self.curr_task)
+                #self.curr_task = self.sample_task()
+                self.tasks_done += 1
+            action = np.array([0, 0, 0, self.grip])
+            self.prev_step_done = True
+        else:
+            action = np.append(action, [self.grip])
+            action = np.random.normal(action, 0.1)   
+            self.prev_step_done = False
 
-        action = np.append(action, [self.grip])
-        action = np.random.normal(action, 0.1)
         action = np.clip(action, a_min=-1, a_max=1)
         self.timestep += 1
 

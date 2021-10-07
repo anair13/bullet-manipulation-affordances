@@ -16,7 +16,7 @@ parser.add_argument("--video_save_frequency", type=int,
 
 args = parser.parse_args()
 object_name = 'beer_bottle' #mug
-data_save_path = "/home/ashvin/data/rail-khazatsky/sasha/presampled_goals/affordances/combined/pnp_goals.pkl"
+data_save_path = "/2tb/home/patrickhaoy/data/affordances/combined_new/pnp_goals.pkl" #/home/ashvin/data/rail-khazatsky/sasha/presampled_goals/affordances/combined/pnp_goals.pkl"
 env = roboverse.make('SawyerRigMultiobj-v0', test_env=True)
 
 

@@ -17,7 +17,7 @@ parser.add_argument("--gui", dest="gui", action="store_true", default=False)
 
 args = parser.parse_args()
 object_name = 'mug' #mug
-data_save_path = "/home/ashvin/data/rail-khazatsky/sasha/presampled_goals/affordances/combined/{0}_goals.pkl".format(object_name)
+data_save_path = "/2tb/home/patrickhaoy/data/affordances/combined_new/tray_goals.pkl" #"/2tb/home/patrickhaoy/data/affordances/combined_new/{0}_goals.pkl".format(object_name)
 env = roboverse.make('SawyerRigMultiobjTray-v0', test_env=True, object_subset=[object_name])
 
 

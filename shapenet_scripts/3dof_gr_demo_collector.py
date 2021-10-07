@@ -18,7 +18,7 @@ parser.add_argument("--video_save_frequency", type=int,
 
 args = parser.parse_args()
 
-prefix = "/home/ashvin/data/rail-khazatsky/sasha/affordances/combined/"
+prefix = "/2tb/home/patrickhaoy/data/affordances/combined_new/" #"/global/scratch/users/patrickhaoy/s3doodad/affordances/combined_new"
 demo_data_save_path = prefix + args.name + "_demos"
 recon_data_save_path = prefix + args.name + "_images.npy"
 
@@ -82,10 +82,10 @@ for j in tqdm(range(args.num_trajectories)):
     avg_tasks_done += env.done
 
     if ((j + 1) % 500) == 0:
-        # curr_name = demo_data_save_path + '_{0}.pkl'.format(num_datasets)
-        # file = open(curr_name, 'wb')
-        # pkl.dump(demo_dataset, file)
-        # file.close()
+        curr_name = demo_data_save_path + '_{0}.pkl'.format(num_datasets)
+        file = open(curr_name, 'wb')
+        pkl.dump(demo_dataset, file)
+        file.close()
 
         num_datasets += 1
         demo_dataset = []

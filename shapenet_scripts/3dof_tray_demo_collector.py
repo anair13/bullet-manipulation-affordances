@@ -19,7 +19,7 @@ parser.add_argument("--video_save_frequency", type=int,
 
 args = parser.parse_args()
 
-prefix = "/home/ashvin/data/rail-khazatsky/sasha/affordances/combined/"
+prefix = "/2tb/home/patrickhaoy/data/affordances/combined_new/" #prefix = "/home/ashvin/data/rail-khazatsky/sasha/affordances/combined/"
 demo_data_save_path = prefix + args.name + "_demos"
 recon_data_save_path = prefix + args.name + "_images.npy"
 
