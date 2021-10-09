@@ -25,7 +25,7 @@ demo_data_save_path = prefix + args.name + "_demos"
 recon_data_save_path = prefix + args.name + "_images.npy"
 video_save_path = prefix + args.name + "_video"
 
-state_env = roboverse.make('SawyerRigAffordances-v0', random_color_p=0.0, expl=True, reset_interval=2, env_type='top_drawer')
+state_env = roboverse.make('SawyerRigAffordances-v0', random_color_p=0.0, expl=True, reset_interval=1, env_type='top_drawer')
 
 # FOR TESTING, TURN COLORS OFF
 imsize = state_env.obs_img_dim
