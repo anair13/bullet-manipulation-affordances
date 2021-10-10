@@ -11,21 +11,22 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--name", type=str)
-parser.add_argument("--num_trajectories", type=int, default=4000)
-parser.add_argument("--num_timesteps", type=int, default=75)
+parser.add_argument("--num_trajectories", type=int, default=12000)
+parser.add_argument("--num_timesteps", type=int, default=50)
 parser.add_argument("--subset", type=str, default='train')
 parser.add_argument("--video_save_frequency", type=int,
                     default=0, help="Set to zero for no video saving")
 
 args = parser.parse_args()
-prefix = "/2tb/home/patrickhaoy/data/affordances/test/" #"/2tb/home/patrickhaoy/data/affordances/combined_new/" #prefix = "/home/ashvin/data/sasha/demos"
+prefix = "/2tb/home/patrickhaoy/data/affordances/combined_reset_free/"
+#prefix = "/2tb/home/patrickhaoy/data/affordances/test/" #"/2tb/home/patrickhaoy/data/affordances/combined_new/" #prefix = "/home/ashvin/data/sasha/demos"
 
 # prefix = "/home/ashvin/data/rail-khazatsky/sasha/affordances/combined/"
 demo_data_save_path = prefix + args.name + "_demos"
 recon_data_save_path = prefix + args.name + "_images.npy"
 video_save_path = prefix + args.name + "_video"
 
-state_env = roboverse.make('SawyerRigAffordances-v0', random_color_p=0.0, expl=True, reset_interval=1, env_type='top_drawer')
+state_env = roboverse.make('SawyerRigAffordances-v0', random_color_p=0.0, expl=True, reset_interval=10)
 
 # FOR TESTING, TURN COLORS OFF
 imsize = state_env.obs_img_dim
@@ -73,7 +74,7 @@ for j in tqdm(range(args.num_trajectories)):
 
         observation = env.get_observation()
 
-        action = env.get_demo_action()
+        action = env.get_demo_action(first_timestep=(i == 0), final_timestep=(i == args.num_timesteps-1))
         next_observation, reward, done, info = env.step(action)
 
         trajectory['observations'].append(observation)
@@ -82,7 +83,9 @@ for j in tqdm(range(args.num_trajectories)):
         trajectory['rewards'][i] = reward
 
     demo_dataset.append(trajectory)
-    avg_tasks_done += env.tasks_done
+    
+    if (j+1) % env.reset_interval == 0:
+        avg_tasks_done += env.tasks_done
 
     if args.video_save_frequency > 0 and i % args.video_save_frequency == 0:
         fpath = '{}/{}.gif'.format(video_save_path, i)
