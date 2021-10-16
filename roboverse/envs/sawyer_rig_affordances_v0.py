@@ -34,6 +34,10 @@ tray_dict= {'handle_drawer': False, 'button': False, 'drawer': False, 'rand_obj'
 obj_dict= {'handle_drawer': False, 'button': False, 'drawer': False, 'rand_obj': True,
 'tray': False, 'drawer_open': False, 'side_sign': 1.}
 
+# Constants
+td_close_pos = 0.0125
+td_open_pos = 0.1687
+
 class SawyerRigAffordancesV0(SawyerBaseEnv):
 
     def __init__(self,
@@ -133,6 +137,8 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         self.expl = kwargs.pop('expl', False)
         self.trajectory_done = False
         self.final_timestep = False
+        self.tasks_done = 0
+        self.tasks_done_names = []
 
         super().__init__(*args, **kwargs)
 
@@ -205,18 +211,6 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
                             self.affordance_dict['tray'] = 1 
                         else:
                             self.affordance_dict['rand_obj'] = 1
-            # self.affordance_dict['drawer'] = np.random.uniform() < self.spawn_prob
-            # self.affordance_dict['handle_drawer'] = np.random.uniform() < self.spawn_prob
-            # self.affordance_dict['button'] = np.random.uniform() < self.spawn_prob
-            # self.affordance_dict['tray'] = np.random.uniform() < self.spawn_prob
-            # self.affordance_dict['rand_obj'] = np.random.uniform() < self.spawn_prob
-
-    def get_num_tasks(self):
-        top_drawer = self.affordance_dict['handle_drawer']
-        bottom_drawer = self.affordance_dict['button']
-        pnp_or_tray = self.affordance_dict['rand_obj']
-        num_tasks = top_drawer + bottom_drawer + pnp_or_tray
-        return num_tasks
 
     def _set_spaces(self):
         act_dim = self.DoF + 1
@@ -283,7 +277,8 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
                 #     rgba=self.sample_object_color())
             
             # randomly initialize how open drawer is
-            self.drawer_opening_num_ts = np.random.random_integers(low=0, high=80)
+            self.drawer_opening_num_ts = np.random.random_integers(low=1, high=60)
+            #print("num_ts: ", self.drawer_opening_num_ts)
             open_drawer(self._top_drawer, num_ts=self.drawer_opening_num_ts)
             self.init_handle_pos = get_drawer_handle_pos(self._top_drawer)[1]
 
@@ -380,7 +375,8 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
             if self.affordance_dict['tray']:
                 # either initialize object in tray or at out_of_tray goal
                 self.out_of_tray_goal = self._fixed_object_position
-                self._fixed_object_position = random.choice([self._fixed_object_position, self.tray_pos])
+                if not self.test_env:
+                    self._fixed_object_position = random.choice([self._fixed_object_position, self.tray_pos])
 
             self.add_object(object_position=self._fixed_object_position)
 
@@ -610,17 +606,11 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         elif key == 'button':
             i, j, thresh = 12, 13, self.button_thresh
             is_task = int(curr_state[i] != 0)
-        elif key == 'top_drawer_close':
-            i, j, thresh = 13, 14, self.drawer_thresh
-            is_task = int(curr_state[11] != 0)
         else:
             print('KEY ERROR')
             return 1/0
 
-        if key == 'top_drawer_close':
-            curr_pos = curr_state[11:12]
-        else:
-            curr_pos = curr_state[i:j]
+        curr_pos = curr_state[i:j]
         goal_pos = goal_state[i:j]
         success = int((np.linalg.norm(curr_pos - goal_pos) < thresh) and is_task)
 
@@ -644,7 +634,6 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         lego_success_list = []
         bottom_drawer_success_list = []
         top_drawer_success_list = []
-        top_drawer_close_success_list = []
         button_success_list = []
 
         hand_present_list = []
@@ -653,7 +642,6 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         lego_present_list = []
         bottom_drawer_present_list = []
         top_drawer_present_list = []
-        top_drawer_close_present_list = []
         button_present_list = []
 
         reward_list = []
@@ -674,13 +662,11 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
                 key='bottom_drawer', success_list=bottom_drawer_success_list, present_list=bottom_drawer_present_list)
             td_success, td_present = self.get_success_metric(curr_obs, goal_obs,
                 key='top_drawer', success_list=top_drawer_success_list, present_list=top_drawer_present_list)
-            td_close_success, td_close_present = self.get_success_metric(curr_obs, goal_obs, 
-                key='top_drawer_close', success_list=top_drawer_close_success_list, present_list=top_drawer_close_present_list)
             button_success, button_present = self.get_success_metric(curr_obs, goal_obs,
                 key='button', success_list=button_success_list, present_list=button_present_list)
 
-            num_tasks = hand_present + rand_obj_present + tray_present + lego_present + bd_present + td_present + td_close_present + button_present
-            num_success = hand_success + rand_obj_success + tray_success + lego_success + bd_success + td_success + td_close_success + button_success
+            num_tasks = hand_present + rand_obj_present + tray_present + lego_present + bd_present + td_present + button_present
+            num_success = hand_success + rand_obj_success + tray_success + lego_success + bd_success + td_success + button_success
             reward_list.append(num_success / num_tasks)
 
 
@@ -690,7 +676,6 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         diagnostics.update(create_stats_ordered_dict(goal_key + "/final/lego_success", lego_success_list))
         diagnostics.update(create_stats_ordered_dict(goal_key + "/final/bottom_drawer_success", bottom_drawer_success_list))
         diagnostics.update(create_stats_ordered_dict(goal_key + "/final/top_drawer_success", top_drawer_success_list))
-        diagnostics.update(create_stats_ordered_dict(goal_key + "/final/top_drawer_close_success", top_drawer_close_success_list))
         diagnostics.update(create_stats_ordered_dict(goal_key + "/final/button_success", button_success_list))
         diagnostics.update(create_stats_ordered_dict(goal_key + "/final/success", reward_list))
 
@@ -700,7 +685,6 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         diagnostics.update(create_stats_ordered_dict(goal_key + "/lego_success", lego_present_list))
         diagnostics.update(create_stats_ordered_dict(goal_key + "/bottom_drawer_success", bottom_drawer_present_list))
         diagnostics.update(create_stats_ordered_dict(goal_key + "/top_drawer_success", top_drawer_present_list))
-        diagnostics.update(create_stats_ordered_dict(goal_key + "/top_drawer_close_success", top_drawer_close_present_list))
         diagnostics.update(create_stats_ordered_dict(goal_key + "/button_success", button_present_list))
 
 
@@ -710,7 +694,6 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         lego_success_list = []
         bottom_drawer_success_list = []
         top_drawer_success_list = []
-        top_drawer_close_success_list = []
         button_success_list = []
         reward_list = []
 
@@ -731,13 +714,11 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
                     key='bottom_drawer', success_list=bottom_drawer_success_list)
                 td_success, td_present = self.get_success_metric(curr_obs, goal_obs,
                     key='top_drawer', success_list=top_drawer_success_list)
-                td_close_success, td_close_present = self.get_success_metric(curr_obs, goal_obs,
-                    key='top_drawer_close', success_list=top_drawer_close_success_list)
                 button_success, button_present = self.get_success_metric(curr_obs, goal_obs,
                     key='button', success_list=button_success_list)
 
-                num_tasks = hand_present + rand_obj_present + tray_present + lego_present + bd_present + td_present + td_close_present + button_present
-                num_success = hand_success + rand_obj_success + tray_success + lego_success + bd_success + td_success + td_close_success + button_success
+                num_tasks = hand_present + rand_obj_present + tray_present + lego_present + bd_present + td_present + button_present
+                num_success = hand_success + rand_obj_success + tray_success + lego_success + bd_success + td_success + button_success
                 reward_list.append(num_success / num_tasks)
 
         diagnostics.update(create_stats_ordered_dict(goal_key + "/hand_success", hand_success_list))
@@ -746,7 +727,6 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         diagnostics.update(create_stats_ordered_dict(goal_key + "/lego_success", lego_success_list))
         diagnostics.update(create_stats_ordered_dict(goal_key + "/bottom_drawer_success", bottom_drawer_success_list))
         diagnostics.update(create_stats_ordered_dict(goal_key + "/top_drawer_success", top_drawer_success_list))
-        diagnostics.update(create_stats_ordered_dict(goal_key + "/top_drawer_success", top_drawer_close_success_list))
         diagnostics.update(create_stats_ordered_dict(goal_key + "/button_success", button_success_list))
         diagnostics.update(create_stats_ordered_dict(goal_key + "/success", reward_list))
 
@@ -792,7 +772,6 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         lego_success, lego_present = self.get_success_metric(curr_state, self.goal_state, 'lego')
         bd_success, bd_present = self.get_success_metric(curr_state, self.goal_state, 'bottom_drawer')
         td_success, td_present = self.get_success_metric(curr_state, self.goal_state, 'top_drawer')
-        td_close_success, td_close_present = self.get_success_metric(curr_state, self.goal_state, 'top_drawer_close')
         button_success, button_present = self.get_success_metric(curr_state, self.goal_state, 'button')
         if print_stats:
             print('-----------------')
@@ -802,10 +781,9 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
             if self.affordance_dict['drawer']: print('Lego: ', lego_success)
             if self.affordance_dict['drawer']: print('Bottom Drawer: ', bd_success)
             if self.affordance_dict['handle_drawer']: 
-                print('Top Drawer: ', td_success)
-                print('Top Drawer Close: ', td_close_success)
+                print('Top Drawer Open: ', td_success)
             if self.affordance_dict['button']: print('Button: ', button_success)
-        reward = (rand_obj_success or tray_success) + lego_success + (bd_success or button_success) + td_success + td_close_success + hand_success
+        reward = (rand_obj_success or tray_success) + lego_success + (bd_success or button_success) + td_success + hand_success
         return reward
 
     def sample_goals(self):
@@ -823,31 +801,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         else:
             self.bd_goal = np.zeros(3)
 
-        if self.affordance_dict['handle_drawer']:
-            td_pos = self.get_object_pos('drawer_handle')
-            drawer_close_pos = -0.0125 * s
-            if s == 1:
-                low, high = td_pos - np.array([0, 0.18, 0]), td_pos - np.array([0, 0.05, 0])
-                low_close, high_close = drawer_close_pos - 0.12, drawer_close_pos + 0.02
-            else:
-                low, high = td_pos + np.array([0, 0.05, 0]), td_pos + np.array([0, 0.18, 0])
-                low_close, high_close = drawer_close_pos - 0.02, drawer_close_pos + 0.12
-            
-            # if sampled goal is already achieved by drawer initialization, then set goal to be drawer full open
-            self.td_goal = np.random.uniform(low=low, high=high)
-            if np.linalg.norm(self.td_goal - (self.get_object_pos('drawer_handle') + s * np.array([0,0.0255,0]))) < 0.05:
-                self.td_goal_close = high if s == 1 else low
-            
-            # if sampled goal is already achieved by drawer initialization, then set goal to be drawer full close
-            self.td_goal_close = np.random.uniform(low=low_close, high=high_close)
-            if np.abs(self.td_goal_close - self.get_object_pos('drawer_handle')[1]) < 0.025:
-                self.td_goal_close = high_close if s == 1 else low_close
-
-            #self.td_goal, self.td_goal_close = [0.6, 0.3440037, -0.22], 0.10267581704129336
-            #print("self.td_goal: ", self.td_goal, ", self.td_goal_close: ", self.td_goal_close)
-        else:
-            self.td_goal = np.zeros(3)
-            self.td_goal_close = 0
+        self.update_drawer_goal()
 
         if self.affordance_dict['button']:
             press = np.random.uniform() < 0.5
@@ -855,15 +809,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         else:
             self.button_goal = 0
 
-        if self.DoF > 3:
-            self.goal_state = np.concatenate([
-                self.hand_goal, [0,0,0,0], [0],
-                self.obj_goal, self.lego_goal, [self.bd_goal[0]],
-                [self.td_goal[1]], [self.button_goal]])
-        else:
-            self.goal_state = np.concatenate([
-                self.hand_goal, [0], self.obj_goal, self.lego_goal, [self.bd_goal[0]],
-                [self.td_goal[1]], [self.button_goal], [self.td_goal_close]])
+        self.update_goal_state()
 
     def reset(self):
         if self.expl:
@@ -874,7 +820,10 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
                 self.tasks_done_names = []
             else:
                 self.update_tray_goal()
+                self.update_drawer_goal()
                 return self.get_observation()  
+        else:
+            self.trajectory_done = False
 
         # # TEMP TEMP TEMP #
         # try:
@@ -913,16 +862,6 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         # self.gif = []
         # # TEMP TEMP TEMP #
         return self.get_observation()
-
-    def update_tray_goal(self):
-        # Change tray goal every episode if task accomplished
-        if self.affordance_dict['tray'] and self.affordance_dict['rand_obj']:
-            obj_pos = self.get_object_pos('obj')
-            obj_in_tray = True if np.linalg.norm(obj_pos[:2] - np.array(self.tray_pos)[:2]) < 0.06 else False
-            if not obj_in_tray:
-                self.obj_goal = self.tray_pos
-            else:
-                self.obj_goal = self.out_of_tray_goal
 
     def format_obs(self, obs):
         if len(obs.shape) == 1:
@@ -1015,11 +954,76 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
 
         return obs_dict
 
+    ### Helper Functions
+    def handle_more_open_than_closed(self):
+        return np.abs(self.get_object_pos('drawer_handle')[1]) > (td_close_pos+td_open_pos)/2
+    
+    def get_drawer_goal(self):
+        if self.affordance_dict['handle_drawer']:
+            return self.td_goal_close if self.handle_more_open_than_closed() else self.td_goal_open
+        else:
+            return 0
+
+    def drawer_done(self, goal):
+        return np.abs(goal - self.get_object_pos('drawer_handle')[1]) < 0.025
+
+    def update_tray_goal(self):
+        # Change tray goal every episode if task accomplished
+        if self.affordance_dict['tray'] and self.affordance_dict['rand_obj']:
+            obj_pos = self.get_object_pos('obj')
+            obj_in_tray = True if np.linalg.norm(obj_pos[:2] - np.array(self.tray_pos)[:2]) < 0.06 else False
+            if not obj_in_tray:
+                self.obj_goal = self.tray_pos
+            else:
+                self.obj_goal = self.out_of_tray_goal
+    
+    def update_drawer_goal(self):
+        s = self.affordance_dict['side_sign']
+        if self.affordance_dict['handle_drawer']:
+            self.td_goal_close = np.random.uniform(low=td_close_pos, high=(td_close_pos+td_open_pos)/2)
+            self.td_goal_close *= -s
+            
+            # we take max so that close and open goals have some separation always
+            td_goal_open_low = max(self.td_goal_close + (td_close_pos+td_open_pos)/4, (td_close_pos+td_open_pos)/2)
+            self.td_goal_open = np.random.uniform(low=td_goal_open_low, high=td_open_pos)
+            self.td_goal_open *= -s
+
+            # if sampled goal is already achieved by drawer initialization, then set goal to be drawer full open/close
+            if self.drawer_done(self.td_goal_close):
+                self.td_goal_close = -s * td_close_pos
+            if self.drawer_done(self.td_goal_open):
+                self.td_goal_open = -s * td_open_pos
+            self.td_goal = self.get_drawer_goal()
+
+            # self.td_goal_open, self.td_goal_close = 0.10142616384776754, 0.08013844454185876
+            # print("self.td_goal_open: ", self.td_goal_open, ", self.td_goal_close: ", self.td_goal_close)
+        else:
+            self.td_goal = 0
+            self.td_goal_close = 0
+            self.td_goal_open = 0
+
+    def get_num_tasks(self):
+        top_drawer = self.affordance_dict['handle_drawer']
+        bottom_drawer = self.affordance_dict['button']
+        pnp_or_tray = self.affordance_dict['rand_obj']
+        num_tasks = top_drawer + bottom_drawer + pnp_or_tray
+        return num_tasks
+
+    def update_goal_state(self):
+        if self.DoF > 3:
+            self.goal_state = np.concatenate([
+                self.hand_goal, [0,0,0,0], [0],
+                self.obj_goal, self.lego_goal, [self.bd_goal[0]],
+                [self.get_drawer_goal()], [self.button_goal]])
+        else:
+            self.goal_state = np.concatenate([
+                self.hand_goal, [0], self.obj_goal, self.lego_goal, [self.bd_goal[0]],
+                [self.get_drawer_goal()], [self.button_goal]])
+
     ### DEMO COLLECTING FUNCTIONS BEYOND THIS POINT ###
 
     def demo_reset(self):
-        self.task_dict = {'drawer_open': self.move_drawer_open,
-                        'drawer_close': self.move_drawer_close,
+        self.task_dict = {'drawer': lambda : self.move_drawer(),
                         'button': self.press_button,
                         'hand': self.move_hand,
                         'lego': lambda: self.move_obj('lego', self.lego_goal),
@@ -1058,21 +1062,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
             options.append('pnp')
 
         # edge case: bottom/top drawer exists, top drawer is open. don't do tray or else gripper will hit handle.
-        try:
-            drawer_open_idx = self.tasks_done_names.index('drawer_open')
-        except ValueError:
-            drawer_open_idx = -1
-        
-        try:
-            drawer_close_idx = self.tasks_done_names.index('drawer_close')
-        except ValueError:
-            drawer_close_idx = -1
-            
-        if (self.affordance_dict['drawer']
-            and self.affordance_dict['handle_drawer']
-            and drawer_open_idx != -1
-            and drawer_open_idx > drawer_close_idx
-        ):
+        if self.affordance_dict['drawer'] and self.affordance_dict['handle_drawer'] and self.handle_more_open_than_closed():
             pass
         else:
             if self.affordance_dict['tray'] and self.affordance_dict['rand_obj']:
@@ -1085,22 +1075,7 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
 
         subtask = 'hand'
         if sampled_task == 'top_drawer':
-            try:
-                drawer_open_idx = self.tasks_done_names.index('drawer_open')
-            except ValueError:
-                drawer_open_idx = -1
-            
-            try:
-                drawer_close_idx = self.tasks_done_names.index('drawer_close')
-            except ValueError:
-                drawer_close_idx = -1
-
-            if drawer_open_idx < drawer_close_idx:
-                subtask = 'drawer_open'
-            elif drawer_open_idx > drawer_close_idx:
-                subtask = 'drawer_close'
-            else:
-                subtask = 'drawer_close' if self.drawer_opening_num_ts > 30 else 'drawer_open'
+            subtask = 'drawer'
         elif sampled_task == 'bottom_drawer':
             subtask = 'button'
         elif sampled_task == 'pnp':
@@ -1120,24 +1095,38 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         self.final_timestep = final_timestep
         action, done = self.task_dict[self.curr_task]()
 
-        if first_timestep:
-            self.trajectory_done = False
-            action = np.array([0, 0, 1])
-        if final_timestep:
-            self.trajectory_done = True
-            if self.curr_task in self.tasks_done_names:
-                self.tasks_done_names.remove(self.curr_task)
-            self.tasks_done_names.append(self.curr_task)
-            self.tasks_done += 1
+        if self.expl:
+            if first_timestep:
+                self.trajectory_done = False
+                action = np.array([0, 0, 1])
+            if final_timestep:
+                self.trajectory_done = True
+                if self.curr_task in self.tasks_done_names:
+                    self.tasks_done_names.remove(self.curr_task)
+                self.tasks_done_names.append(self.curr_task)
+                self.tasks_done += 1
 
-        if done:
-            self.trajectory_done = True
+            if done:
+                self.trajectory_done = True
 
-        if self.trajectory_done:
-            action = np.array([0, 0, 1, -1])
+            if self.trajectory_done:
+                action = np.array([0, 0, 1, -1])
+            else:
+                action = np.append(action, [self.grip])
+                action = np.random.normal(action, 0.1)
         else:
-            action = np.append(action, [self.grip])
-            action = np.random.normal(action, 0.1)   
+            if done:
+                #self.get_reward(print_stats=True)
+                self.tasks_done_names.append(self.curr_task)
+                self.update_drawer_goal()
+                self.update_goal_state()
+                self.curr_task = self.sample_task()
+                self.tasks_done += 1
+
+                action = np.array([0, 0, 1, -1])
+            else:
+                action = np.append(action, [self.grip])
+                action = np.random.normal(action, 0.1)
 
         action = np.clip(action, a_min=-1, a_max=1)
         self.timestep += 1
@@ -1158,61 +1147,17 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
             action = (self.hand_goal - ee_pos) * 3.0
 
         return action, done
-
-    def move_drawer_open(self):
+    
+    def move_drawer(self):
         ee_pos = self.get_end_effector_pos()
         s = self.affordance_dict['side_sign']
-        target_pos = self.get_object_pos('drawer_handle') + s * np.array([0,0.0255,0])
+        target_pos = self.get_object_pos('drawer_handle') + s * np.array([0,0.015,0]) + np.array([0,0,-.0280 if self.affordance_dict['drawer'] else -.0080])
         y_aligned = np.linalg.norm(target_pos[0] - ee_pos[0]) < 0.035
-        x_aligned = (s*(target_pos[1] - ee_pos[1])) > 0.0 and (s*(target_pos[1] - ee_pos[1])) < 0.065
+        x_aligned = (s*(target_pos[1] - ee_pos[1])) > 0.0 and (s*(target_pos[1] - ee_pos[1])) < 0.045
         behind = (s*(target_pos[1] - ee_pos[1])) < 0.017
         aligned = y_aligned and x_aligned
         enclosed = np.linalg.norm(target_pos[2] - ee_pos[2]) < 0.01
-        done = np.linalg.norm(self.td_goal - target_pos) < 0.05
-        above = ee_pos[2] >= -0.105
-        self.grip = -1.
-
-        if not aligned and not above:
-            #print('Stage 1')
-            action = np.array([0.,0., 1.])
-        elif (not aligned) or behind:
-            #print('Stage 2')
-            action = (target_pos - ee_pos) * 3.0
-            if behind: action[1] = -s # Otherwise we hit the drawer
-            action[2] = 0.
-            action *= 2.0
-        # if gripper is in position already, skip to stage 4
-        elif len(self.tasks_done_names) > 0 and self.tasks_done_names[-1] == 'drawer_close' and aligned and np.linalg.norm(target_pos[2] - ee_pos[2]) < 0.03:
-            #print('Stage 4 (+)')
-            action = np.sign(np.array([0, self.td_goal[1] - ee_pos[1], 0]))
-        elif aligned and not enclosed:
-            #print('Stage 3')
-            action = target_pos - ee_pos
-            action[2] -= 0.03
-            action *= 3.0
-            action[2] *= 2.0
-        else:
-            #print('Stage 4')
-            action = np.sign(np.array([0, self.td_goal[1] - ee_pos[1], 0]))
-
-        # print(aligned, above, behind, enclosed, done)
-        # print(target_pos, ee_pos, self.td_goal)
-
-        if done:
-            action = np.array([0,0,1])
-
-        return action, done
-
-    def move_drawer_close(self):
-        ee_pos = self.get_end_effector_pos()
-        s = self.affordance_dict['side_sign']
-        target_pos = self.get_object_pos('drawer_handle') + s * np.array([0,0.0165,0]) + np.array([0,0,-.0280 if self.affordance_dict['drawer'] else -.0080])
-        y_aligned = np.linalg.norm(target_pos[0] - ee_pos[0]) < 0.035
-        x_aligned = (s*(target_pos[1] - ee_pos[1])) > 0.0 and (s*(target_pos[1] - ee_pos[1])) < 0.065
-        behind = (s*(target_pos[1] - ee_pos[1])) < 0.017
-        aligned = y_aligned and x_aligned
-        enclosed = np.linalg.norm(target_pos[2] - ee_pos[2]) < 0.005
-        done = np.abs(self.td_goal_close - self.get_object_pos('drawer_handle')[1]) < 0.025
+        done = self.drawer_done(self.td_goal)
         above = ee_pos[2] >= -0.105
         self.grip = -1.
 
@@ -1225,10 +1170,9 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
             if behind: action[1] = -s # Otherwise we hit the drawer
             action[2] = 0.
             action *= 2.0
-        # if gripper is in position already, skip to stage 4
-        elif len(self.tasks_done_names) > 0 and self.tasks_done_names[-1] == 'drawer_open' and aligned and np.linalg.norm(target_pos[2] - ee_pos[2]) < 0.03:
-            #print('Stage 4 (+)')
-            action = np.sign(np.array([0, self.td_goal_close - ee_pos[1], 0]))
+        elif not self.affordance_dict['drawer'] and ee_pos[2] >= -0.255:
+            #print('Stage 2.5')
+            action = np.array([0.,0., -1.])
         elif aligned and not enclosed:
             #print('Stage 3')
             action = target_pos - ee_pos
@@ -1237,21 +1181,22 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
             action[2] *= 2.0
         else:
             #print('Stage 4')
-            action = np.sign(np.array([0, self.td_goal_close - ee_pos[1], 0]))
+            action = np.sign(np.array([0, self.td_goal - ee_pos[1], 0]))
 
-        # print(aligned, above, behind, enclosed)
-        # print(target_pos, ee_pos)
+        # print(aligned, above, behind, enclosed, done)
+        # print(self.get_object_pos('drawer_handle'))
 
         if done:
             action = np.array([0,0,1])
-        
+
         return action, done
 
     def press_button(self):
         done = self.button_used
+        s = self.affordance_dict['side_sign']
         ee_pos = self.get_end_effector_pos()
-        target_pos = self.get_object_pos('button') + np.array([0, -0.035, 0])
-        aligned = np.linalg.norm(target_pos[:2] - ee_pos[:2]) < 0.01
+        target_pos = self.get_object_pos('button') + s * np.array([0, -0.0375, 0])
+        aligned = np.linalg.norm(target_pos[:2] - ee_pos[:2]) < 0.02
         above = ee_pos[2] >= -0.101
         self.grip = -1.
 

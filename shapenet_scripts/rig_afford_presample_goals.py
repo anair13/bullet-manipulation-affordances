@@ -19,8 +19,9 @@ parser.add_argument("--gui", dest="gui", action="store_true", default=False)
 
 args = parser.parse_args()
 
-for env_type in ['top_drawer', 'bottom_drawer']:
-    data_save_path = "/2tb/home/patrickhaoy/data/affordances/combined_new/" + env_type + "_goals.pkl"
+for env_type in ['top_drawer', 'bottom_drawer', 'tray', 'obj']:
+    print(env_type)
+    data_save_path = "/2tb/home/patrickhaoy/data/affordances/combined_reset_free_v5_goals/" + env_type + "_goals.pkl"
     #data_save_path = "/home/ashvin/data/rail-khazatsky/sasha/presampled_goals/affordances/combined/" + env_type + "_goals.pkl"
     #data_save_path = "/home/ashvin/data/sasha/demos/affordances_" + env_type + "_goals.pkl"
     env = roboverse.make('SawyerRigAffordances-v0', test_env=True, env_type=env_type)
@@ -46,7 +47,8 @@ for env_type in ['top_drawer', 'bottom_drawer']:
         if env_type == 'tray':
             env.obj_goal = np.array([0.78, 0.14, -.35])
         
-        for k in range(40):
+        k_range = np.random.choice(20) + 30 if env_type == 'tray' else np.random.choice(15)
+        for k in range(k_range):
             action = env.get_demo_action()
             obs, reward, done, info = env.step(action)
         
