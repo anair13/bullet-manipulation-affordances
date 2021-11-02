@@ -19,7 +19,7 @@ parser.add_argument("--video_save_frequency", type=int,
                     default=0, help="Set to zero for no video saving")
 
 args = parser.parse_args()
-prefix = "/2tb/home/patrickhaoy/data/affordances/combined_reset_free_v5/"
+prefix = "/2tb/home/patrickhaoy/data/affordances/combined_reset_free_v5_top_drawer_test_env_only/"
 #prefix = "/2tb/home/patrickhaoy/data/affordances/test/" #"/2tb/home/patrickhaoy/data/affordances/combined_new/" #prefix = "/home/ashvin/data/sasha/demos"
 
 # prefix = "/home/ashvin/data/rail-khazatsky/sasha/affordances/combined/"
@@ -27,7 +27,7 @@ demo_data_save_path = prefix + args.name + "_demos"
 recon_data_save_path = prefix + args.name + "_images.npy"
 video_save_path = prefix + args.name + "_video"
 
-state_env = roboverse.make('SawyerRigAffordances-v0', random_color_p=0.0, expl=True, reset_interval=args.reset_interval)
+state_env = roboverse.make('SawyerRigAffordances-v0', random_color_p=0.0, expl=True, reset_interval=args.reset_interval, env_type="top_drawer")
 
 # FOR TESTING, TURN COLORS OFF
 imsize = state_env.obs_img_dim

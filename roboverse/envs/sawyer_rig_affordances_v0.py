@@ -104,7 +104,8 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
 
         if self.test_env:
             self.random_color_p = 0.0
-            self.object_subset = ['grill_trash_can']
+            self.object_subset = kwargs.pop('test_object_subset', ['grill_trash_can'])
+            #self.object_subset = ['beer_bottle']
 
         self.obj_thresh = 0.08
         self.drawer_thresh = 0.065
@@ -139,6 +140,9 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
         self.final_timestep = False
         self.tasks_done = 0
         self.tasks_done_names = []
+
+        # Debug
+        self.debug = kwargs.pop('debug', None)
 
         super().__init__(*args, **kwargs)
 
@@ -1003,10 +1007,13 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
             self.td_goal_open = 0
 
     def get_num_tasks(self):
-        top_drawer = self.affordance_dict['handle_drawer']
-        bottom_drawer = self.affordance_dict['button']
-        pnp_or_tray = self.affordance_dict['rand_obj']
-        num_tasks = top_drawer + bottom_drawer + pnp_or_tray
+        if self.debug == 'tray':
+            num_tasks = (self.affordance_dict['rand_obj'] and self.affordance_dict['tray'])
+        else:
+            top_drawer = self.affordance_dict['handle_drawer']
+            bottom_drawer = self.affordance_dict['button']
+            pnp_or_tray = self.affordance_dict['rand_obj']
+            num_tasks = top_drawer + bottom_drawer + pnp_or_tray
         return num_tasks
 
     def update_goal_state(self):
@@ -1053,6 +1060,9 @@ class SawyerRigAffordancesV0(SawyerBaseEnv):
 
     def sample_task(self):
         options = []
+
+        if self.debug == 'tray':
+            return 'rand_obj'
 
         if self.affordance_dict['handle_drawer']:
             options.append('top_drawer')
