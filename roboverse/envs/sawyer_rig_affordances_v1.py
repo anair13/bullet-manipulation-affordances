@@ -108,7 +108,6 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
 
         # Drawer
         self.gripper_has_been_above = False
-        self.saved_obj_pos = None
 
         # Debug
         self.debug = kwargs.pop('debug', None)
@@ -242,29 +241,8 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
             bullet.step()
     
     def sample_object_location(self):
-        obj_pos = None
-        for i in range(100):
-            obj_pos = np.array([random.uniform(gripper_bounding_x[0], gripper_bounding_x[1]), random.uniform(gripper_bounding_y[0], gripper_bounding_y[1]), 0])
-            
-            drawer_open_pos = self.get_drawer_handle_future_pos(td_open_coeff)
-            drawer_handle_pos = self.get_td_handle_pos()
-            drawer_frame_pos = get_drawer_frame_pos(self._top_drawer)
-            v = drawer_open_pos - drawer_handle_pos
-            perp = np.array([-v[1], v[0], 0]) / np.linalg.norm(v[:2])
-            para = np.array([v[0], v[1], 0]) / np.linalg.norm(v[:2])
-            corner_a = drawer_frame_pos - 0.2 * para - 0.25 * perp
-            corner_b = drawer_open_pos + 0.3 * para - 0.25 * perp
-            corner_c = drawer_open_pos + 0.3 * para + 0.25 * perp
-            
-            if not self.point_inside_prlgm(obj_pos[0], obj_pos[1], [corner_a[:2], corner_b[:2], corner_c[:2]]):
-                self.saved_obj_pos = obj_pos
-                break
-            else:
-                if self.saved_obj_pos is not None and i >= 10:
-                    obj_pos = self.saved_obj_pos
-                    break
+        obj_pos = np.array([random.uniform(gripper_bounding_x[0], gripper_bounding_x[1]), random.uniform(gripper_bounding_y[0], gripper_bounding_y[1]), 0])
         return obj_pos
-
 
     def _format_action(self, *action):
         if len(action) == 1:
@@ -433,22 +411,6 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         return obs_dict
 
     ### Helper Functions
-    def point_inside_prlgm(self, x,y,poly):
-        inside = False
-        xb = poly[0][0] - poly[1][0]
-        yb = poly[0][1] - poly[1][1]
-        xc = poly[2][0] - poly[1][0]
-        yc = poly[2][1] - poly[1][1]
-        xp = x - poly[1][0]
-        yp = y - poly[1][1]
-        d = xb * yc - yb * xc;
-        if (d != 0):
-            oned = 1.0 / d;
-            bb = (xp * yc - xc * yp) * oned
-            cc = (xb * yp - xp * yb) * oned
-            inside = (bb >= 0) & (cc >= 0) & (bb <= 1) & (cc <= 1)
-        return inside
-
     def sample_object_color(self):
         if np.random.uniform() < self.random_color_p:
             return list(np.random.choice(range(256), size=3) / 255.0) + [1]
