@@ -2,9 +2,9 @@ import roboverse as rv
 
 env = rv.make("SawyerRigAffordances-v1", gui=True)
 env.expl = True
-ts = 100
+ts = 75
 
-for i in range(10):
+for i in range(100):
     env.demo_reset()
     for t in range(ts):
         action = env.get_demo_action(first_timestep=(t == 0), final_timestep=(t == ts - 1))
