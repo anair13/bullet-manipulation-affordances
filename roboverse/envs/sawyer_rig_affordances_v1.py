@@ -149,7 +149,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         act_high = np.ones(act_dim) * act_bound
         self.action_space = gym.spaces.Box(-act_high, act_high)
 
-        observation_dim = 12
+        observation_dim = 11
         obs_bound = 100
         obs_high = np.ones(observation_dim) * obs_bound
         state_space = gym.spaces.Box(-obs_high, obs_high)
