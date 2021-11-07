@@ -90,6 +90,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         self.drawer_thresh = 0.065
 
         self.object_dict, self.scaling = self.get_object_info()
+        self.curr_object = None
         self.default_theta = bullet.deg_to_quat([180, 0, 0])
         self.obs_img_dim = obs_img_dim
         self._view_matrix_obs = bullet.get_view_matrix(
@@ -171,15 +172,19 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
 
         ## Top Drawer
         # HARDCODE
-        self.drawer_yaw = random.uniform(0, 360)
+        if self.test_env:
+            self.drawer_yaw = 180
+            drawer_frame_pos = np.array([.6, -.19, -.34])
+        else:
+            self.drawer_yaw = random.uniform(0, 360)
+            
+            while(True):
+                drawer_frame_pos = np.array([random.uniform(gripper_bounding_x[0], gripper_bounding_x[1]), random.uniform(gripper_bounding_y[0], gripper_bounding_y[1]), -.34])
+                drawer_handle_open_goal_pos = drawer_frame_pos + td_open_coeff * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])
+                if gripper_bounding_x[0] <= drawer_handle_open_goal_pos[0] <= gripper_bounding_x[1] \
+                    and gripper_bounding_y[0] <= drawer_handle_open_goal_pos[1] <= gripper_bounding_y[1]:
+                    break
         quat = deg_to_quat([0, 0, self.drawer_yaw])
-
-        while(True):
-            drawer_frame_pos = np.array([random.uniform(gripper_bounding_x[0], gripper_bounding_x[1]), random.uniform(gripper_bounding_y[0], gripper_bounding_y[1]), -.34])
-            drawer_handle_open_goal_pos = drawer_frame_pos + td_open_coeff * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])
-            if gripper_bounding_x[0] <= drawer_handle_open_goal_pos[0] <= gripper_bounding_x[1] \
-                and gripper_bounding_y[0] <= drawer_handle_open_goal_pos[1] <= gripper_bounding_y[1]:
-                break
         
         # For debugging: hardcode drawer_yaw and drawer_frame_pos
         # self.drawer_yaw = 160.10009720998795
@@ -196,7 +201,8 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         self.init_handle_pos = get_drawer_handle_pos(self._top_drawer)[1]
 
         ## Distractor Objects
-        for _ in range(0, np.random.randint(3)):
+        num_objects = 1 if self.test_env else np.random.randint(3)
+        for _ in range(0, num_objects):
             self.spawn_object()
 
         self._workspace = bullet.Sensor(self._sawyer,
@@ -241,7 +247,10 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
             bullet.step()
     
     def sample_object_location(self):
-        obj_pos = np.array([random.uniform(gripper_bounding_x[0], gripper_bounding_x[1]), random.uniform(gripper_bounding_y[0], gripper_bounding_y[1]), 0])
+        if self.test_env:
+            obj_pos = np.array([.85, -.15, 0])
+        else:
+            obj_pos = np.array([random.uniform(gripper_bounding_x[0], gripper_bounding_x[1]), random.uniform(gripper_bounding_y[0], gripper_bounding_y[1]), 0])
         return obj_pos
 
     def _format_action(self, *action):
@@ -469,7 +478,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
             if first_timestep:
                 self.trajectory_done = False
                 self.gripper_has_been_above = False
-                action = np.array([0, 0, 1])
+                action = np.array([0, 0, 1, 0])
             if done or final_timestep:
                 self.trajectory_done = True
 
