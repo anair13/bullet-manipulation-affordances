@@ -117,6 +117,9 @@ class SawyerBaseEnv(gym.Env, Serializable):
 
     def get_end_effector_pos(self):
         return bullet.get_link_state(self._sawyer, self._end_effector, 'pos')
+    
+    def get_end_effector_theta(self):
+        return bullet.get_link_state(self._sawyer, self._end_effector, 'theta')
 
     def _load_meshes(self):
         self._sawyer = bullet.objects.sawyer()
