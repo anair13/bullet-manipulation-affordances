@@ -13,15 +13,21 @@ parser = argparse.ArgumentParser()
 #parser.add_argument("--name", type=str)
 parser.add_argument("--num_trajectories", type=int, default=100)
 parser.add_argument("--num_timesteps", type=int, default=50)
+parser.add_argument("--downsample", action='store_true')
 parser.add_argument("--video_save_frequency", type=int,
                     default=0, help="Set to zero for no video saving")
 parser.add_argument("--gui", dest="gui", action="store_true", default=False)
 
 args = parser.parse_args()
 
-data_save_path = "/2tb/home/patrickhaoy/data/affordances/reset_free_v5_rotated_top_drawer/top_drawer_goals.pkl"
+data_save_path = "/2tb/home/patrickhaoy/data/affordances/data/reset_free_v5_rotated_top_drawer/top_drawer_goals.pkl"
 #data_save_path = "/2tb/home/patrickhaoy/data/affordances/test/top_drawer_goals.pkl"
-env = roboverse.make('SawyerRigAffordances-v1', test_env=True)
+
+kwargs = {}
+if args.downsample:
+    kwargs['downsample'] = True
+    kwargs['env_obs_img_dim'] = 196
+env = roboverse.make('SawyerRigAffordances-v1', test_env=True, **kwargs)
 
 
 obs_dim = env.observation_space.spaces['state_achieved_goal'].low.size

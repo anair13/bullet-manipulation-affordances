@@ -14,20 +14,25 @@ parser.add_argument("--name", type=str)
 parser.add_argument("--num_trajectories", type=int, default=8000)
 parser.add_argument("--num_timesteps", type=int, default=75)
 parser.add_argument("--reset_interval", type=int, default=10)
+parser.add_argument("--downsample", action='store_true')
 parser.add_argument("--subset", type=str, default='train')
 parser.add_argument("--video_save_frequency", type=int,
                     default=0, help="Set to zero for no video saving")
 
 args = parser.parse_args()
-prefix = "/2tb/home/patrickhaoy/data/affordances/data/reset_free_v5_rotated_top_drawer/"
-#prefix = "/2tb/home/patrickhaoy/data/test/" #"/2tb/home/patrickhaoy/data/affordances/combined_new/" #prefix = "/home/ashvin/data/sasha/demos"
+#prefix = "/2tb/home/patrickhaoy/data/affordances/data/antialias_reset_free_v5_rotated_top_drawer/"
+prefix = "/2tb/home/patrickhaoy/data/test/" #"/2tb/home/patrickhaoy/data/affordances/combined_new/" #prefix = "/home/ashvin/data/sasha/demos"
 
 # prefix = "/home/ashvin/data/rail-khazatsky/sasha/affordances/combined/"
 demo_data_save_path = prefix + args.name + "_demos"
 recon_data_save_path = prefix + args.name + "_images.npy"
 video_save_path = prefix + args.name + "_video"
 
-state_env = roboverse.make('SawyerRigAffordances-v1', random_color_p=0.0, expl=True, reset_interval=args.reset_interval)
+kwargs = {}
+if args.downsample:
+    kwargs['downsample'] = True
+    kwargs['env_obs_img_dim'] = 196
+state_env = roboverse.make('SawyerRigAffordances-v1', random_color_p=0.0, expl=True, reset_interval=args.reset_interval, **kwargs)
 
 # FOR TESTING, TURN COLORS OFF
 imsize = state_env.obs_img_dim

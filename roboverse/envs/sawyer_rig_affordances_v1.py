@@ -13,6 +13,8 @@ import pickle
 import gym
 from roboverse.bullet.drawer_utils import *
 from roboverse.bullet.button_utils import *
+from PIL import Image
+import pkgutil
 
 test_set = ['mug', 'long_sofa', 'camera', 'grill_trash_can', 'beer_bottle']
 
@@ -82,6 +84,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         self.task = task
         self.DoF = DoF
         self.test_env = test_env
+        self.test_env_seed = kwargs.pop('test_env_seed', None) if self.test_env else None
 
         if self.test_env:
             self.random_color_p = 0.0
@@ -110,8 +113,9 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         # Drawer
         self.gripper_has_been_above = False
 
-        # Debug
-        self.debug = kwargs.pop('debug', None)
+        # Anti-aliasing
+        self.downsample = kwargs.pop('downsample', True)
+        self.env_obs_img_dim = kwargs.pop('env_obs_img_dim', self.obs_img_dim)
 
         super().__init__(*args, **kwargs)
 
@@ -121,6 +125,10 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         self._pos_init = [0.6, -0.15, -0.2]
         self._pos_low = [0.5,-0.2,-.36]
         self._pos_high = [0.85,0.2,-0.1]
+
+        # # Speed up rendering
+        # egl = pkgutil.get_loader('eglRenderer')
+        # eglPluginId = p.loadPlugin(egl.get_filename(), "_eglRendererPlugin")
 
     def get_object_info(self):
         complete_object_dict, scaling = metadata.obj_path_map, metadata.path_scaling_map
@@ -171,8 +179,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         self._table = bullet.objects.table(rgba=[.92,.85,.7,1])
 
         ## Top Drawer
-        # HARDCODE
-        if self.test_env:
+        if self.test_env and not self.test_env_seed:
             self.drawer_yaw = 180
             drawer_frame_pos = np.array([.6, -.19, -.34])
         else:
@@ -331,8 +338,12 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
 
     def render_obs(self):
         img, depth, segmentation = bullet.render(
-            self.obs_img_dim, self.obs_img_dim, self._view_matrix_obs,
+            self.env_obs_img_dim, self.env_obs_img_dim, self._view_matrix_obs,
             self._projection_matrix_obs, shadow=0, gaussian_width=0)
+        
+        if self.downsample:
+            im = Image.fromarray(np.uint8(img), 'RGB').resize(self.image_shape, resample=Image.ANTIALIAS)
+            img = np.array(im)       
         if self._transpose_image:
             img = np.transpose(img, (2, 0, 1))
         return img
@@ -355,6 +366,8 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         self.update_goal_state()
 
     def reset(self):
+        if self.test_env_seed:
+            random.seed(self.test_env_seed)
         if self.expl:
             self.reset_counter += 1
             if self.reset_interval == self.reset_counter:
