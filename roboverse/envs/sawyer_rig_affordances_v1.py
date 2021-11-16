@@ -114,8 +114,13 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         self.gripper_has_been_above = False
 
         # Anti-aliasing
-        self.downsample = kwargs.pop('downsample', True)
+        self.downsample = kwargs.pop('downsample', False)
         self.env_obs_img_dim = kwargs.pop('env_obs_img_dim', self.obs_img_dim)
+
+        # Debugging
+        self.full_open_close_init_and_goal = kwargs.pop('full_open_close_init_and_goal', False)
+        if self.full_open_close_init_and_goal:
+            self.current_goal_is_open = False
 
         super().__init__(*args, **kwargs)
 
@@ -202,9 +207,21 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
 
         self._top_drawer = bullet.objects.drawer(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color())
         
-        # randomly initialize how open drawer is
-        self.drawer_opening_num_ts = np.random.random_integers(low=1, high=60)
-        open_drawer(self._top_drawer, num_ts=self.drawer_opening_num_ts)
+        # case: full open/close drawer initialization/goal
+        if self.full_open_close_init_and_goal:
+            # flip goals/initializations between open/close drawer
+            self.current_goal_is_open = not self.current_goal_is_open
+            # case: close drawer initialization + open drawer goal
+            if self.current_goal_is_open:
+                pass
+            # case: open drawer initialization + close drawer goal
+            else:
+                open_drawer(self._top_drawer, num_ts=60)
+        # case: uniform random drawer initialization/goal
+        else:
+            # randomly initialize how open drawer is
+            open_drawer(self._top_drawer, num_ts=np.random.random_integers(low=1, high=60))
+
         self.init_handle_pos = get_drawer_handle_pos(self._top_drawer)[1]
 
         ## Distractor Objects
@@ -309,6 +326,18 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
             success_list.append(success)
         return success
 
+    def get_gripper_deg(self, curr_state, roll_list=None, pitch_list=None, yaw_list=None):
+        quat = curr_state[3:7]
+        deg = quat_to_deg(quat)
+        if roll_list is not None:
+            roll_list.append(deg[0])
+        if pitch_list is not None:
+            pitch_list.append(deg[1])
+        if yaw_list is not None:
+            yaw_list.append(deg[2])
+
+        return deg
+
     def get_contextual_diagnostics(self, paths, contexts):
         #from roboverse.utils.diagnostics import create_stats_ordered_dict
         from multiworld.envs.env_util import create_stats_ordered_dict
@@ -333,6 +362,18 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
                 td_success = self.get_success_metric(curr_obs, goal_obs, success_list=top_drawer_success_list)
                 reward_list.append(td_success)
         diagnostics.update(create_stats_ordered_dict(goal_key + "/top_drawer_success", top_drawer_success_list))
+
+        gripper_rotation_roll_list = []
+        gripper_rotation_pitch_list = []
+        gripper_rotation_yaw_list = []
+        for i in range(len(paths)):
+            for j in range(len(paths[i]["observations"])):
+                curr_obs = paths[i]["observations"][j][state_key]
+                self.get_gripper_deg(curr_obs, roll_list=gripper_rotation_roll_list, pitch_list=gripper_rotation_pitch_list, yaw_list=gripper_rotation_yaw_list)
+
+        diagnostics.update(create_stats_ordered_dict(state_key + "/gripper_rotation_roll", gripper_rotation_roll_list))
+        diagnostics.update(create_stats_ordered_dict(state_key + "/gripper_rotation_pitch", gripper_rotation_pitch_list))
+        diagnostics.update(create_stats_ordered_dict(state_key + "/gripper_rotation_yaw", gripper_rotation_yaw_list))
 
         return diagnostics
 
@@ -419,6 +460,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         top_drawer_pos = self.get_td_handle_pos()
 
         #(hand_pos, hand_theta, gripper, td_pos)
+        #(3, 4, 1, 3)
         observation = np.concatenate((end_effector_pos, hand_theta, gripper_tips_distance, top_drawer_pos))
 
         obs_dict = dict(
@@ -451,17 +493,34 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
     def drawer_done(self, curr_pos, goal_pos):
         return np.linalg.norm(curr_pos - goal_pos) < self.drawer_thresh
 
+    def done_fn(self, curr_state, goal_state):
+        curr_pos = curr_state['state_observation'][8:11]
+        goal_pos = goal_state['state_desired_goal'][8:11]
+        return self.drawer_done(curr_pos, goal_pos)
+
     def update_drawer_goal(self):
-        if self.handle_more_open_than_closed():
-            td_goal_coeff = np.random.uniform(low=(td_close_coeff+td_open_coeff)/2, high=td_open_coeff)
+        # case: full open/close drawer initialization/goal
+        if self.full_open_close_init_and_goal:
+            # case: close drawer initialization + open drawer goal
+            if self.current_goal_is_open:
+                td_goal_coeff = td_open_coeff
+            # case: open drawer initialization + close drawer goal
+            else:
+                td_goal_coeff = td_close_coeff
+        # case: uniform random drawer initialization/goal
         else:
-            td_goal_coeff = np.random.uniform(low=td_close_coeff, high=(td_close_coeff+td_open_coeff)/2)
+            if self.handle_more_open_than_closed():
+                td_goal_coeff = np.random.uniform(low=(td_close_coeff+td_open_coeff)/2, high=td_open_coeff)
+            else:
+                td_goal_coeff = np.random.uniform(low=td_close_coeff, high=(td_close_coeff+td_open_coeff)/2)
         
         drawer_handle_goal_pos = self.get_drawer_handle_future_pos(td_goal_coeff)
         drawer_handle_pos = self.get_td_handle_pos()
 
         # if sampled goal is already achieved by drawer initialization, then set goal to be drawer full open/close
         if self.drawer_done(drawer_handle_pos, drawer_handle_goal_pos):
+            assert not self.full_open_close_init_and_goal
+
             td_goal_coeff = td_close_coeff if self.handle_more_open_than_closed() else td_open_coeff
             drawer_handle_goal_pos = self.get_drawer_handle_future_pos(td_goal_coeff)
         

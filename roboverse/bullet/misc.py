@@ -174,6 +174,13 @@ def quat_to_deg(quat):
     euler_deg = rad_to_deg(euler_rad)
     return euler_deg
 
+def quat_to_deg_batch(quat_batch):
+    euler_deg_batch = np.zeros((quat_batch.shape[0], 3))
+    for i in range(quat_batch.shape[0]): 
+        euler_rad = p.getEulerFromQuaternion(quat_batch[i])
+        euler_deg = rad_to_deg(euler_rad)
+        euler_deg_batch[i] = euler_deg
+    return euler_deg_batch
 
 def deg_to_quat(deg):
     rad = deg_to_rad(deg)

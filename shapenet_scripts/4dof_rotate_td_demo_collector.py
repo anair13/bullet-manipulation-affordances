@@ -74,6 +74,7 @@ for j in tqdm(range(args.num_trajectories)):
         'object_name': env.curr_object,
     }
     for i in range(args.num_timesteps):
+        import pdb; pdb.set_trace()
         img = np.uint8(env.render_obs())
         recon_dataset['observations'][j, i, :] = img.transpose().flatten()
 
