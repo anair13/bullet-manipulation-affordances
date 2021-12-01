@@ -414,7 +414,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
             if self.reset_interval == self.reset_counter:
                 self.reset_counter = 0
             else:
-                self.update_drawer_goal()
+                self.sample_goals()
                 return self.get_observation()  
         else:
             self.trajectory_done = False
@@ -562,8 +562,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         else:
             if done:
                 #self.get_reward(print_stats=True)
-                self.update_drawer_goal()
-                self.update_goal_state()
+                self.sample_goals()
 
                 action = np.array([0, 0, 1, 0, -1])
             else:
