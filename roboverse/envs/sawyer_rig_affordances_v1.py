@@ -84,7 +84,9 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         self.task = task
         self.DoF = DoF
         self.test_env = test_env
+        self.use_multiple_goals = kwargs.pop('use_multiple_goals', False)
         self.test_env_seed = kwargs.pop('test_env_seed', None) if self.test_env else None
+        self.test_env_seeds = kwargs.pop('test_env_seeds', None) if self.test_env else None
 
         if self.test_env:
             self.random_color_p = 0.0
@@ -411,6 +413,8 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         self.update_goal_state()
 
     def reset(self):
+        if self.use_multiple_goals:
+            self.test_env_seed = np.random.choice(self.test_env_seeds)
         if self.test_env_seed:
             random.seed(self.test_env_seed)
         if self.expl:
