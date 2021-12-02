@@ -109,6 +109,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         self.expl = kwargs.pop('expl', False)
         self.trajectory_done = False
         self.final_timestep = False
+        self.drawer_sliding = kwargs.pop('drawer_sliding', False)
 
         # Drawer
         self.gripper_has_been_above = False
@@ -205,7 +206,10 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         # drawer_frame_pos = np.array(list((0.6351875030272269, -0.10053104435094253, -0.34)))
         #drawer_yaw:  160.10009720998795 , drawer_frame_pos:  (0.6351875030272269, -0.10053104435094253, -0.34)
 
-        self._top_drawer = bullet.objects.drawer(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color())
+        if self.drawer_sliding:
+            self._top_drawer = bullet.objects.drawer_sliding(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color())
+        else:
+            self._top_drawer = bullet.objects.drawer(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color())
         
         # case: full open/close drawer initialization/goal
         if self.full_open_close_init_and_goal:
@@ -486,7 +490,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
 
     def handle_more_open_than_closed(self):
         drawer_handle_close_pos = self.get_drawer_handle_future_pos(td_close_coeff)
-        drawer_handle_open_pos = self.get_drawer_handle_future_pos(td_close_coeff)
+        drawer_handle_open_pos = self.get_drawer_handle_future_pos(td_open_coeff)
         drawer_handle_pos = self.get_td_handle_pos()
         return np.linalg.norm(drawer_handle_open_pos - drawer_handle_pos) < np.linalg.norm(drawer_handle_close_pos - drawer_handle_pos)
 
@@ -524,7 +528,8 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
             td_goal_coeff = td_close_coeff if self.handle_more_open_than_closed() else td_open_coeff
             drawer_handle_goal_pos = self.get_drawer_handle_future_pos(td_goal_coeff)
         
-        self.td_goal = drawer_handle_goal_pos
+        self.td_goal_coeff = td_goal_coeff
+        self.td_goal = drawer_handle_goal_pos 
         
     def update_goal_state(self):
         self.goal_state = np.concatenate([[0 for _ in range(8)], self.td_goal])
@@ -544,6 +549,10 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
 
     def get_demo_action(self, first_timestep=False, final_timestep=False):
         self.final_timestep = final_timestep
+        
+        if self.drawer_sliding:
+            self.td_goal = self.get_drawer_handle_future_pos(self.td_goal_coeff) # update goal in case drawer slides
+
         action, done = self.move_drawer()
 
         if self.expl:
@@ -624,7 +633,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
             if print_stages: print('Stage 5')
             xy_action = self.td_goal - drawer_handle_pos
             action = 6*np.array([xy_action[0], xy_action[1], 0, 0])
-        
+  
         if done:
             action = np.array([0, 0, 1, 0])
 

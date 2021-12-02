@@ -50,7 +50,6 @@ def get_drawer_opened_percentage(
     else:
         return (max_x_pos - drawer_x_pos) / (max_x_pos - min_x_pos)
 
-
 def slide_drawer(drawer, direction, num_ts=None, render_obs=None):
     assert direction in [-1, 1]
     # -1 = open; 1 = close

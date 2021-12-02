@@ -15,6 +15,7 @@ parser.add_argument("--num_trajectories", type=int, default=8000)
 parser.add_argument("--num_timesteps", type=int, default=75)
 parser.add_argument("--reset_interval", type=int, default=10)
 parser.add_argument("--downsample", action='store_true')
+parser.add_argument("--drawer_sliding", action='store_true')
 parser.add_argument("--subset", type=str, default='train')
 parser.add_argument("--video_save_frequency", type=int,
                     default=0, help="Set to zero for no video saving")
@@ -32,6 +33,8 @@ kwargs = {}
 if args.downsample:
     kwargs['downsample'] = True
     kwargs['env_obs_img_dim'] = 196
+if args.drawer_sliding:
+    kwargs['drawer_sliding'] = True
 state_env = roboverse.make('SawyerRigAffordances-v1', random_color_p=0.0, expl=True, reset_interval=args.reset_interval, **kwargs)
 
 # FOR TESTING, TURN COLORS OFF
@@ -74,7 +77,6 @@ for j in tqdm(range(args.num_trajectories)):
         'object_name': env.curr_object,
     }
     for i in range(args.num_timesteps):
-        import pdb; pdb.set_trace()
         img = np.uint8(env.render_obs())
         recon_dataset['observations'][j, i, :] = img.transpose().flatten()
 

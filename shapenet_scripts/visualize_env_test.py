@@ -1,7 +1,7 @@
 import roboverse as rv
 
-env = rv.make("SawyerRigAffordances-v1", gui=True, expl=True)
-ts = 75
+env = rv.make("SawyerRigAffordances-v1", gui=True, expl=True, reset_interval=10, drawer_sliding=True)
+ts = 100
 
 for i in range(100):
     env.demo_reset()
