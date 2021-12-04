@@ -347,15 +347,15 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
             if key == 'gripper_position':
                 success = int(np.linalg.norm(pos - goal_pos) < self.gripper_pos_thresh)   
             elif key == 'gripper_rotation_roll':
-                success = int(np.linalg.norm(deg[0] - goal_deg[0]) < self.gripper_rot_thresh)   
+                success = int(self.norm_deg(deg[0], goal_deg[0]) < self.gripper_rot_thresh)   
             elif key == 'gripper_rotation_pitch':
-                success = int(np.linalg.norm(deg[1] - goal_deg[1]) < self.gripper_rot_thresh)   
+                success = int(self.norm_deg(deg[1], goal_deg[1]) < self.gripper_rot_thresh)   
             elif key == 'gripper_rotation_yaw':
-                success = int(np.linalg.norm(deg[2] - goal_deg[2]) < self.gripper_rot_thresh)   
+                success = int(self.norm_deg(deg[2], goal_deg[2]) < self.gripper_rot_thresh)   
             elif key == 'gripper_rotation':
-                success = int(np.linalg.norm(deg - goal_deg) < self.gripper_rot_thresh)
+                success = int(np.sqrt(self.norm_deg(deg[0], goal_deg[0])**2 + self.norm_deg(deg[1], goal_deg[1])**2 + self.norm_deg(deg[2], goal_deg[2])**2) < self.gripper_rot_thresh)
             elif key == 'gripper':
-                success = int(np.linalg.norm(pos - goal_pos) < self.gripper_pos_thresh) and int(np.linalg.norm(deg - goal_deg) < self.gripper_rot_thresh)
+                success = int(np.linalg.norm(pos - goal_pos) < self.gripper_pos_thresh) and int(np.sqrt(self.norm_deg(deg[0], goal_deg[0])**2 + self.norm_deg(deg[1], goal_deg[1])**2 + self.norm_deg(deg[2], goal_deg[2])**2) < self.gripper_rot_thresh)
         if success_list is not None:
             success_list.append(success)
         return success
@@ -375,18 +375,19 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
             if key == 'gripper_position':
                 distance = np.linalg.norm(pos - goal_pos) 
             elif key == 'gripper_rotation_roll':
-                distance = np.linalg.norm(deg[0] - goal_deg[0]) 
+                distance = self.norm_deg(deg[0], goal_deg[0])
             elif key == 'gripper_rotation_pitch':
-                distance = np.linalg.norm(deg[1] - goal_deg[1])   
+                distance = self.norm_deg(deg[1], goal_deg[1])
             elif key == 'gripper_rotation_yaw':
-                distance = np.linalg.norm(deg[2] - goal_deg[2])  
+                distance = self.norm_deg(deg[2], goal_deg[2])
             elif key == 'gripper_rotation':
-                distance = np.linalg.norm(deg - goal_deg)
-            elif key == 'gripper':
-                distance = np.linalg.norm(np.concatenate(pos, deg) - np.concatenate(goal_pos, goal_deg))
+                distance = np.sqrt(self.norm_deg(deg[0], goal_deg[0])**2 + self.norm_deg(deg[1], goal_deg[1])**2 + self.norm_deg(deg[2], goal_deg[2])**2)
         if distance_list is not None:
             distance_list.append(distance)
         return distance
+
+    def norm_deg(self, deg1, deg2):
+        return min(np.linalg.norm((360 + deg1 - deg2) % 360), np.linalg.norm((360 + deg2 - deg1) % 360))
 
     def get_gripper_deg(self, curr_state, roll_list=None, pitch_list=None, yaw_list=None):
         quat = curr_state[3:7]
@@ -407,8 +408,8 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         state_key = "state_observation"
         goal_key = "state_desired_goal"
 
-        success_keys = ["top_drawer", "gripper_position", "gripper_rotation_roll", "gripper_rotation_pitch", "gripper_rotation_yaw", "gripper_rotation", "gripper_success"]
-        distance_keys = success_keys
+        success_keys = ["top_drawer", "gripper_position", "gripper_rotation_roll", "gripper_rotation_pitch", "gripper_rotation_yaw", "gripper_rotation", "gripper"]
+        distance_keys = ["top_drawer", "gripper_position", "gripper_rotation_roll", "gripper_rotation_pitch", "gripper_rotation_yaw", "gripper_rotation"]
 
         dict_of_success_lists = {}
         for k in success_keys:
