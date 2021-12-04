@@ -93,6 +93,8 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
             self.object_subset = kwargs.pop('test_object_subset', ['grill_trash_can'])
 
         self.drawer_thresh = 0.065
+        self.gripper_pos_thresh = 0.08
+        self.gripper_rot_thresh = 10
 
         self.object_dict, self.scaling = self.get_object_info()
         self.curr_object = None
@@ -105,6 +107,8 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
             self.obs_img_dim, self.obs_img_dim)
         self.dt = 0.1
 
+        self.expert_policy_std = kwargs.pop('expert_policy_std', 0.1)
+
         # Reset-free
         self.reset_interval = kwargs.pop('reset_interval', 1)
         self.reset_counter = self.reset_interval-1
@@ -115,6 +119,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
 
         # Drawer
         self.gripper_has_been_above = False
+        self.fix_drawer_orientation = kwargs.pop('fix_drawer_orientation', False)
 
         # Anti-aliasing
         self.downsample = kwargs.pop('downsample', False)
@@ -191,7 +196,10 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
             self.drawer_yaw = 180
             drawer_frame_pos = np.array([.6, -.19, -.34])
         else:
-            self.drawer_yaw = random.uniform(0, 360)
+            if self.fix_drawer_orientation:
+                self.drawer_yaw = 180
+            else:
+                self.drawer_yaw = random.uniform(0, 360)
             
             while(True):
                 drawer_frame_pos = np.array([random.uniform(gripper_bounding_x[0], gripper_bounding_x[1]), random.uniform(gripper_bounding_y[0], gripper_bounding_y[1]), -.34])
@@ -324,13 +332,61 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
     def get_info(self):
         return {}
 
-    def get_success_metric(self, curr_state, goal_state, success_list=None):
-        curr_pos = curr_state[8:11]
-        goal_pos = goal_state[8:11]
-        success = int(self.drawer_done(curr_pos, goal_pos))
+    def get_success_metric(self, curr_state, goal_state, success_list=None, key=None):
+        success = 0
+        if key == 'top_drawer':
+            curr_pos = curr_state[8:11]
+            goal_pos = goal_state[8:11]
+            success = int(self.drawer_done(curr_pos, goal_pos))
+        else:
+            pos = curr_state[0:3]
+            goal_pos = goal_state[0:3]
+            deg = quat_to_deg(curr_state[3:7])
+            goal_deg = quat_to_deg(goal_state[3:7])
+
+            if key == 'gripper_position':
+                success = int(np.linalg.norm(pos - goal_pos) < self.gripper_pos_thresh)   
+            elif key == 'gripper_rotation_roll':
+                success = int(np.linalg.norm(deg[0] - goal_deg[0]) < self.gripper_rot_thresh)   
+            elif key == 'gripper_rotation_pitch':
+                success = int(np.linalg.norm(deg[1] - goal_deg[1]) < self.gripper_rot_thresh)   
+            elif key == 'gripper_rotation_yaw':
+                success = int(np.linalg.norm(deg[2] - goal_deg[2]) < self.gripper_rot_thresh)   
+            elif key == 'gripper_rotation':
+                success = int(np.linalg.norm(deg - goal_deg) < self.gripper_rot_thresh)
+            elif key == 'gripper':
+                success = int(np.linalg.norm(pos - goal_pos) < self.gripper_pos_thresh) and int(np.linalg.norm(deg - goal_deg) < self.gripper_rot_thresh)
         if success_list is not None:
             success_list.append(success)
         return success
+    
+    def get_distance_metric(self, curr_state, goal_state, distance_list=None, key=None):
+        distance = float("inf")
+        if key == 'top_drawer':
+            curr_pos = curr_state[8:11]
+            goal_pos = goal_state[8:11]
+            distance = np.linalg.norm(curr_pos-goal_pos)
+        else:
+            pos = curr_state[0:3]
+            goal_pos = goal_state[0:3]
+            deg = quat_to_deg(curr_state[3:7])
+            goal_deg = quat_to_deg(goal_state[3:7])
+
+            if key == 'gripper_position':
+                distance = np.linalg.norm(pos - goal_pos) 
+            elif key == 'gripper_rotation_roll':
+                distance = np.linalg.norm(deg[0] - goal_deg[0]) 
+            elif key == 'gripper_rotation_pitch':
+                distance = np.linalg.norm(deg[1] - goal_deg[1])   
+            elif key == 'gripper_rotation_yaw':
+                distance = np.linalg.norm(deg[2] - goal_deg[2])  
+            elif key == 'gripper_rotation':
+                distance = np.linalg.norm(deg - goal_deg)
+            elif key == 'gripper':
+                distance = np.linalg.norm(np.concatenate(pos, deg) - np.concatenate(goal_pos, goal_deg))
+        if distance_list is not None:
+            distance_list.append(distance)
+        return distance
 
     def get_gripper_deg(self, curr_state, roll_list=None, pitch_list=None, yaw_list=None):
         quat = curr_state[3:7]
@@ -351,23 +407,41 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         state_key = "state_observation"
         goal_key = "state_desired_goal"
 
-        top_drawer_success_list = []
-        reward_list = []
+        success_keys = ["top_drawer", "gripper_position", "gripper_rotation_roll", "gripper_rotation_pitch", "gripper_rotation_yaw", "gripper_rotation", "gripper_success"]
+        distance_keys = success_keys
+
+        dict_of_success_lists = {}
+        for k in success_keys:
+            dict_of_success_lists[k] = []
+        
+        dict_of_distance_lists = {}
+        for k in distance_keys:
+            dict_of_distance_lists[k] = []
+        
         for i in range(len(paths)):
             curr_obs = paths[i]["observations"][-1][state_key]
             goal_obs = contexts[i][goal_key]
-            td_success = self.get_success_metric(curr_obs, goal_obs, success_list=top_drawer_success_list)
-            reward_list.append(td_success)
-        diagnostics.update(create_stats_ordered_dict(goal_key + "/final/top_drawer_success", top_drawer_success_list))
-
-        top_drawer_success_list = []
+            for k in success_keys:
+                self.get_success_metric(curr_obs, goal_obs, success_list=dict_of_success_lists[k], key=k)
+            for k in distance_keys:
+                self.get_distance_metric(curr_obs, goal_obs, distance_list=dict_of_distance_lists[k], key=k)
+        for k in success_keys:
+            diagnostics.update(create_stats_ordered_dict(goal_key + f"/final/{k}_success", dict_of_success_lists[k]))
+        for k in distance_keys:
+            diagnostics.update(create_stats_ordered_dict(goal_key + f"/final/{k}_distance", dict_of_distance_lists[k]))
+        
         for i in range(len(paths)):
             for j in range(len(paths[i]["observations"])):
                 curr_obs = paths[i]["observations"][j][state_key]
                 goal_obs = contexts[i][goal_key]
-                td_success = self.get_success_metric(curr_obs, goal_obs, success_list=top_drawer_success_list)
-                reward_list.append(td_success)
-        diagnostics.update(create_stats_ordered_dict(goal_key + "/top_drawer_success", top_drawer_success_list))
+                for k in success_keys:
+                    self.get_success_metric(curr_obs, goal_obs, success_list=dict_of_success_lists[k], key=k)
+                for k in distance_keys:
+                    self.get_distance_metric(curr_obs, goal_obs, distance_list=dict_of_distance_lists[k], key=k)
+        for k in success_keys:
+            diagnostics.update(create_stats_ordered_dict(goal_key + f"/{k}_success", dict_of_success_lists[k]))
+        for k in distance_keys:
+            diagnostics.update(create_stats_ordered_dict(goal_key + f"/{k}_distance", dict_of_distance_lists[k]))
 
         gripper_rotation_roll_list = []
         gripper_rotation_pitch_list = []
@@ -499,7 +573,10 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         return np.linalg.norm(drawer_handle_open_pos - drawer_handle_pos) < np.linalg.norm(drawer_handle_close_pos - drawer_handle_pos)
 
     def drawer_done(self, curr_pos, goal_pos):
-        return np.linalg.norm(curr_pos - goal_pos) < self.drawer_thresh
+        if curr_pos.size == 0 or goal_pos.size == 0:
+            return 0
+        else:
+            return np.linalg.norm(curr_pos - goal_pos) < self.drawer_thresh
 
     def done_fn(self, curr_state, goal_state):
         curr_pos = curr_state['state_observation'][8:11]
@@ -571,7 +648,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
                 action = np.array([0, 0, 1, 0, -1])
             else:
                 action = np.append(action, [self.grip])
-                action = np.random.normal(action, 0.1)
+                action = np.random.normal(action, self.expert_policy_std)
         else:
             if done:
                 #self.get_reward(print_stats=True)
@@ -580,7 +657,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
                 action = np.array([0, 0, 1, 0, -1])
             else:
                 action = np.append(action, [self.grip])
-                action = np.random.normal(action, 0.1)
+                action = np.random.normal(action, self.expert_policy_std)
 
         action = np.clip(action, a_min=-1, a_max=1)
         self.timestep += 1
