@@ -100,9 +100,24 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         self.curr_object = None
         self.default_theta = bullet.deg_to_quat([180, 0, 0])
         self.obs_img_dim = obs_img_dim
-        self._view_matrix_obs = bullet.get_view_matrix(
-            target_pos=[.7, 0, -0.25], distance=0.425,
-            yaw=90, pitch=-37, roll=0, up_axis_index=2)
+        self.new_view = kwargs.pop('new_view', False)
+        self.close_view = kwargs.pop('close_view', False)
+        if self.new_view:
+            if self.close_view:
+                p = .9
+                gripper_bounding_x[1] = ((1-p) * gripper_bounding_x[0] + p * gripper_bounding_x[1])
+                self._view_matrix_obs = bullet.get_view_matrix(
+                    target_pos=[0.7, 0, -0.25], distance=0.425,
+                    yaw=90, pitch=-50, roll=0, up_axis_index=2)
+            else:
+                self._view_matrix_obs = bullet.get_view_matrix(
+                    target_pos=[0.7, 0, -0.4], distance=0.76,
+                    yaw=90, pitch=-50, roll=0, up_axis_index=2)
+        else:
+            assert not self.close_view
+            self._view_matrix_obs = bullet.get_view_matrix(
+                target_pos=[.7, 0, -0.25], distance=0.425,
+                yaw=90, pitch=-37, roll=0, up_axis_index=2)
         self._projection_matrix_obs = bullet.get_projection_matrix(
             self.obs_img_dim, self.obs_img_dim)
         self.dt = 0.1
@@ -120,6 +135,8 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         # Drawer
         self.gripper_has_been_above = False
         self.fix_drawer_orientation = kwargs.pop('fix_drawer_orientation', False)
+        self.fix_drawer_orientation_semicircle = kwargs.pop('fix_drawer_orientation_semicircle', False)
+        assert not (self.fix_drawer_orientation and self.drawer_orientation_semicircle)
 
         # Anti-aliasing
         self.downsample = kwargs.pop('downsample', False)
@@ -190,6 +207,10 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
 
         self._sawyer = bullet.objects.drawer_sawyer()
         self._table = bullet.objects.table(rgba=[.92,.85,.7,1])
+        # self._debug1 = bullet.objects.button(pos=[.46, -.19, -.25])
+        # self._debug2 = bullet.objects.button(pos=[.84, .19, -.25])
+        if self.new_view:
+            self._wall = bullet.objects.wall()
 
         ## Top Drawer
         if self.test_env and not self.test_env_seed:
@@ -198,9 +219,11 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         else:
             if self.fix_drawer_orientation:
                 self.drawer_yaw = 180
+            elif self.fix_drawer_orientation_semicircle:
+                self.drawer_yaw = random.uniform(0, 180)
             else:
                 self.drawer_yaw = random.uniform(0, 360)
-            
+   
             while(True):
                 drawer_frame_pos = np.array([random.uniform(gripper_bounding_x[0], gripper_bounding_x[1]), random.uniform(gripper_bounding_y[0], gripper_bounding_y[1]), -.34])
                 drawer_handle_open_goal_pos = drawer_frame_pos + td_open_coeff * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])
@@ -718,6 +741,17 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
   
         if done:
             action = np.array([0, 0, 1, 0])
+        
+        # if self.timestep < 25:
+        #     action = np.array([1, 1, 1, 0])
+        # elif self.timestep < 50:
+        #     action = np.array([1, -1, 1, 0])
+        # elif self.timestep < 100:
+        #     action = np.array([-1, -1, 1, 0])
+        # elif self.timestep < 200:
+        #     action = np.array([-1, 1, 1, 0])
+        # else:
+        #     pass
 
         if self.final_timestep and print_stages: print("drawer_yaw: ", self.drawer_yaw, ", drawer_frame_pos: ", get_drawer_frame_pos(self._top_drawer))
         return action, done

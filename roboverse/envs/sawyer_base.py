@@ -83,7 +83,6 @@ class SawyerBaseEnv(gym.Env, Serializable):
         self.observation_space = gym.spaces.Box(-obs_high, obs_high)
 
     def reset(self):
-
         bullet.reset()
         bullet.setup_headless(self._timestep, solver_iterations=self._solver_iterations)
         self._load_meshes()

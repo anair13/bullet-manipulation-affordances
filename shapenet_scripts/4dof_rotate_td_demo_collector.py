@@ -15,29 +15,36 @@ parser.add_argument("--num_trajectories", type=int, default=8000)
 parser.add_argument("--num_timesteps", type=int, default=75)
 parser.add_argument("--reset_interval", type=int, default=10)
 parser.add_argument("--fix_drawer_orientation", action='store_true')
+parser.add_argument("--fix_drawer_orientation_semicircle", action='store_true')
 parser.add_argument("--downsample", action='store_true')
 parser.add_argument("--drawer_sliding", action='store_true')
+parser.add_argument("--new_view", action='store_true')
+parser.add_argument("--close_view", action='store_true')
+parser.add_argument("--offset", type=int, default=0)
 parser.add_argument("--subset", type=str, default='train')
 parser.add_argument("--video_save_frequency", type=int,
                     default=0, help="Set to zero for no video saving")
 
 args = parser.parse_args()
-prefix = "/2tb/home/patrickhaoy/data/affordances/data/antialias_reset_free_v5_right_top_drawer/"
+prefix = f"/2tb/home/patrickhaoy/data/affordances/data/{args.name}/"
 #prefix = "/2tb/home/patrickhaoy/data/test/" #"/2tb/home/patrickhaoy/data/affordances/combined_new/" #prefix = "/home/ashvin/data/sasha/demos"
 
 # prefix = "/home/ashvin/data/rail-khazatsky/sasha/affordances/combined/"
 demo_data_save_path = prefix + args.name + "_demos"
-recon_data_save_path = prefix + args.name + "_images.npy"
+recon_data_save_path = prefix + args.name + "_images"
 video_save_path = prefix + args.name + "_video"
 
-kwargs = {}
+kwargs = {
+    'drawer_sliding': args.drawer_sliding,
+    'fix_drawer_orientation': args.fix_drawer_orientation,
+    'fix_drawer_orientation_semicircle': args.fix_drawer_orientation_semicircle,
+    'new_view': args.new_view,
+    'close_view': args.close_view,
+}
 if args.downsample:
     kwargs['downsample'] = True
     kwargs['env_obs_img_dim'] = 196
-if args.drawer_sliding:
-    kwargs['drawer_sliding'] = True
-if args.fix_drawer_orientation:
-    kwargs['fix_drawer_orientation'] = True
+
 state_env = roboverse.make('SawyerRigAffordances-v1', random_color_p=0.0, expl=True, reset_interval=args.reset_interval, **kwargs)
 
 # FOR TESTING, TURN COLORS OFF
@@ -103,7 +110,7 @@ for j in tqdm(range(args.num_trajectories)):
         print("saved", fpath)
 
     if ((j + 1) % 500) == 0:
-        curr_name = demo_data_save_path + '_{0}.pkl'.format(num_datasets)
+        curr_name = demo_data_save_path + '_{0}.pkl'.format(num_datasets+args.offset)
         file = open(curr_name, 'wb')
         pkl.dump(demo_dataset, file)
         file.close()
@@ -111,4 +118,4 @@ for j in tqdm(range(args.num_trajectories)):
         num_datasets += 1
         demo_dataset = []
 
-np.save(recon_data_save_path, recon_dataset)
+np.save(recon_data_save_path + '_{0}.npy'.format(args.offset), recon_dataset)

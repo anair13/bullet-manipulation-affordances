@@ -75,6 +75,11 @@ lego = loader(PDATA_PATH, 'lego/lego.urdf',
               rgba=[1, 0, 0, 1],
               scale=1.3)
 
+traybox = loader(PDATA_PATH, 'tray/traybox.urdf',
+              pos=[.65, 0, -.3],
+              quat=[0, 0, 1, 0],
+              rgba=[1, .898, .706, 1],
+              scale=2.0)
 
 ## custom objects
 
@@ -102,6 +107,12 @@ tray = loader(ASSET_PATH, os.path.join(obj_dir, "box_open_top", "box_open_top.ur
               rgba=[1, 1, 1, 1],
               deg=[0, 0, 0],
               scale=0.175)
+
+wall = loader(ASSET_PATH, os.path.join(obj_dir, "wall", "wall.urdf"),
+              pos=[.68, 0, -.3],
+              rgba=[1, 1, 1, 1],
+              deg=[0, 0, 0],
+              scale=0.8)
 
 box = loader(ASSET_PATH, os.path.join(obj_dir, "box", "box.urdf"),
                 # pos=[0.85, 0, -.35],

@@ -16,6 +16,11 @@ parser.add_argument("--num_timesteps", type=int, default=50)
 parser.add_argument("--downsample", action='store_true')
 parser.add_argument("--test_env_seeds", nargs='+', type=int)
 parser.add_argument("--full_open_close_init_and_goal", action="store_true")
+parser.add_argument("--fix_drawer_orientation", action="store_true")
+parser.add_argument("--fix_drawer_orientation_semicircle", action='store_true')
+parser.add_argument("--drawer_sliding", action='store_true')
+parser.add_argument("--new_view", action='store_true')
+parser.add_argument("--close_view", action='store_true')
 parser.add_argument("--debug", action='store_true')
 parser.add_argument("--video_save_frequency", type=int,
                     default=0, help="Set to zero for no video saving")
@@ -29,12 +34,17 @@ for test_env_seed in test_env_seeds:
     if args.debug:
         data_save_path = "/2tb/home/patrickhaoy/data/test/test.pkl"
     else:
-        data_save_path = "/2tb/home/patrickhaoy/data/affordances/data/antialias_reset_free_v5_rotated_top_drawer/{}top_drawer_goals_seed{}.pkl".format("full_open_close_" if args.full_open_close_init_and_goal else "", str(test_env_seed))
+        data_save_path = "/2tb/home/patrickhaoy/data/affordances/data/new_close_view_antialias_reset_free_v5_rotated_semicircle_top_drawer/{}top_drawer_goals_seed{}.pkl".format("full_open_close_" if args.full_open_close_init_and_goal else "", str(test_env_seed))
 
     kwargs = {
         'test_env_seed': test_env_seed,
         'full_open_close_init_and_goal': args.full_open_close_init_and_goal,
         'expl': True if args.full_open_close_init_and_goal else False,
+        'fix_drawer_orientation': True if args.fix_drawer_orientation else False,
+        'fix_drawer_orientation_semicircle': True if args.fix_drawer_orientation_semicircle else False,
+        'drawer_sliding': True if args.drawer_sliding else False,
+        'new_view': True if args.new_view else False,
+        'close_view': True if args.close_view else False,
     }
     if args.downsample:
         kwargs['downsample'] = True
