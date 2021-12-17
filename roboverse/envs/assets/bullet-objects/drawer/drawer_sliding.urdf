@@ -2,7 +2,7 @@
 <robot name="bowl.urdf">
   <material name="mainColor">
     <color rgba=".1 .25 .6 1."/>
-  </material>
+  </material>z
 <!--   <material name="mainColor">
     <color rgba=".55 .27 .1 1."/>
   </material> -->

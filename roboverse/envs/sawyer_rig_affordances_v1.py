@@ -137,6 +137,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         self.fix_drawer_orientation = kwargs.pop('fix_drawer_orientation', False)
         self.fix_drawer_orientation_semicircle = kwargs.pop('fix_drawer_orientation_semicircle', False)
         assert not (self.fix_drawer_orientation and self.drawer_orientation_semicircle)
+        self.red_drawer_base = kwargs.pop('red_drawer_base', False)
 
         # Anti-aliasing
         self.downsample = kwargs.pop('downsample', False)
@@ -240,9 +241,15 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         #drawer_yaw:  160.10009720998795 , drawer_frame_pos:  (0.6351875030272269, -0.10053104435094253, -0.34)
 
         if self.drawer_sliding:
-            self._top_drawer = bullet.objects.drawer_sliding(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color())
+            if self.red_drawer_base:
+                self._top_drawer = bullet.objects.drawer_sliding_red_base(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color())
+            else:
+                self._top_drawer = bullet.objects.drawer_sliding(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color())
         else:
-            self._top_drawer = bullet.objects.drawer(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color())
+            if self.red_drawer_base:
+                self._top_drawer = bullet.objects.drawer_red_base(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color())
+            else:
+                self._top_drawer = bullet.objects.drawer(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color())
         
         # case: full open/close drawer initialization/goal
         if self.full_open_close_init_and_goal:

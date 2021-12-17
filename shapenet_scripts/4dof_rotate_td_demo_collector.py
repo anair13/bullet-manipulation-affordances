@@ -18,6 +18,7 @@ parser.add_argument("--fix_drawer_orientation", action='store_true')
 parser.add_argument("--fix_drawer_orientation_semicircle", action='store_true')
 parser.add_argument("--downsample", action='store_true')
 parser.add_argument("--drawer_sliding", action='store_true')
+parser.add_argument("--red_drawer_base", action='store_true')
 parser.add_argument("--new_view", action='store_true')
 parser.add_argument("--close_view", action='store_true')
 parser.add_argument("--offset", type=int, default=0)
@@ -40,6 +41,7 @@ kwargs = {
     'fix_drawer_orientation_semicircle': args.fix_drawer_orientation_semicircle,
     'new_view': args.new_view,
     'close_view': args.close_view,
+    'red_drawer_base': args.red_drawer_base,
 }
 if args.downsample:
     kwargs['downsample'] = True
