@@ -2,6 +2,15 @@
 *__pycache__*
 *.pyc*
 roboverse/envs/assets/ShapeNetCore/*
-roboverse/envs/assets/bullet-objects/*
+roboverse/envs/assets/bullet-objects/*/*0.urdf
+roboverse/envs/assets/bullet-objects/*/*1.urdf
+roboverse/envs/assets/bullet-objects/*/*2.urdf
+roboverse/envs/assets/bullet-objects/*/*3.urdf
+roboverse/envs/assets/bullet-objects/*/*4.urdf
+roboverse/envs/assets/bullet-objects/*/*5.urdf
+roboverse/envs/assets/bullet-objects/*/*6.urdf
+roboverse/envs/assets/bullet-objects/*/*7.urdf
+roboverse/envs/assets/bullet-objects/*/*8.urdf
+roboverse/envs/assets/bullet-objects/*/*9.urdf
 data/*
 
