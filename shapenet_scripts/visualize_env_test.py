@@ -3,28 +3,28 @@ import numpy as np
 import skvideo.io
 
 #obs_img_dim=196, 
-env = rv.make("SawyerRigAffordances-v1", new_view=True, close_view=True, gui=False, expl=False, reset_interval=10, drawer_sliding=True, fix_drawer_orientation_semicircle=True, test_env=True, test_env_seed=1, env_obs_img_dim=196, red_drawer_base=True) #down_sample=True
-ts = 75
+env = rv.make("SawyerRigAffordances-v2", new_view=True, close_view=True, gui=True, expl=True, reset_interval=10, drawer_sliding=False, fix_drawer_orientation_semicircle=True, env_obs_img_dim=196, red_drawer_base=True, random_color_p=0.0)#, downsample=True) #test_env=True, test_env_seed=1, 
+ts = 100
 num_traj = 100
 
 save_video = True
 
 if save_video:
     video_save_path = '/2tb/home/patrickhaoy/data/test/'
-    num_traj = 1
-    observations = np.zeros((ts, 196, 196, 3))
+    num_traj = 10
+    observations = np.zeros((num_traj*ts, 196, 196, 3))
 
 for i in range(num_traj):
     env.demo_reset()
     for t in range(ts):
         if save_video:
             img = np.uint8(env.render_obs())
-            observations[t, :] = img
+            observations[i*ts + t, :] = img
         action = env.get_demo_action(first_timestep=(t == 0), final_timestep=(t == ts - 1))
         next_observation, reward, done, info = env.step(action)
 
 if save_video:
     writer = skvideo.io.FFmpegWriter(video_save_path + "debug.mp4")
-    for i in range(ts):
+    for i in range(num_traj*ts):
             writer.writeFrame(observations[i, :, :, :])
     writer.close()

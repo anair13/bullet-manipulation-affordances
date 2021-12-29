@@ -19,6 +19,7 @@ parser.add_argument("--full_open_close_init_and_goal", action="store_true")
 parser.add_argument("--fix_drawer_orientation", action="store_true")
 parser.add_argument("--fix_drawer_orientation_semicircle", action='store_true')
 parser.add_argument("--drawer_sliding", action='store_true')
+parser.add_argument("--red_drawer_base", action='store_true')
 parser.add_argument("--new_view", action='store_true')
 parser.add_argument("--close_view", action='store_true')
 parser.add_argument("--debug", action='store_true')
@@ -45,6 +46,7 @@ for test_env_seed in test_env_seeds:
         'drawer_sliding': True if args.drawer_sliding else False,
         'new_view': True if args.new_view else False,
         'close_view': True if args.close_view else False,
+        'red_drawer_base': True if args.red_drawer_base else False,
     }
     if args.downsample:
         kwargs['downsample'] = True
