@@ -3,11 +3,21 @@ import numpy as np
 import skvideo.io
 
 #obs_img_dim=196, 
-env = rv.make("SawyerRigAffordances-v2", new_view=True, close_view=True, gui=True, expl=True, reset_interval=10, drawer_sliding=False, fix_drawer_orientation_semicircle=True, env_obs_img_dim=196, red_drawer_base=True, random_color_p=0.0)#, downsample=True) #test_env=True, test_env_seed=1, 
+env = rv.make(
+    "SawyerRigAffordances-v2", 
+    gui=True, 
+    expl=True, 
+    reset_interval=1, 
+    drawer_sliding=False, 
+    env_obs_img_dim=196, 
+    random_color_p=0.0, 
+    # test_env=True, 
+    # test_env_seed=1
+)#, downsample=True)  
 ts = 100
 num_traj = 100
 
-save_video = True
+save_video = False
 
 if save_video:
     video_save_path = '/2tb/home/patrickhaoy/data/test/'
