@@ -228,7 +228,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
 
             self.get_obj_pnp_goals()
             for rgba, pos in zip([[0.93, .294, .169, 1], [.5, 1., 0., 1], [0., .502, .502, 1]], [self.on_top_drawer_goal, self.in_drawer_goal, self.out_of_drawer_goal]):
-                if np.random.uniform() < .5:
+                if random.uniform(0, 1) < .5:
                     pos = self.out_of_drawer_goal + np.array([0, 0, 0.5])
                     self.get_obj_pnp_goals()
                 self._objs.append(self.spawn_object(object_position=pos, rgba=rgba))
@@ -246,21 +246,11 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
                 break
 
         # Tray acts as stopper for drawer closing
-        #self.debug1 = bullet.objects.button(pos=self.get_drawer_handle_future_pos(-.05) + np.array([0, 0, .1]))
         tray_pos = self.get_drawer_handle_future_pos(-.01)
         self._tray = bullet.objects.tray(quat=quat, pos=tray_pos, scale=0.0001)
-        if np.random.uniform() < .5:
-            close_drawer(self._top_drawer, 200)
-        #close_drawer(self._top_drawer, np.random.random_integers(low=1, high=80))
 
-        # _debug1_pos = list(get_drawer_frame_pos(self._top_drawer))
-        # _debug1_pos[2] += .1
-        # _debug1_pos[0] += .2
-        # self._debug1 = bullet.objects.button(pos=_debug1_pos)
-        
-        # _debug2_pos = list(get_drawer_bottom_pos(self._top_drawer))
-        # _debug2_pos[2] += 0
-        # self._debug2 = bullet.objects.button(pos=_debug2_pos)
+        if random.uniform(0, 1) < .5:
+            close_drawer(self._top_drawer, 200)
 
         self._workspace = bullet.Sensor(self._sawyer,
             xyz_min=self._pos_low, xyz_max=self._pos_high,
@@ -543,7 +533,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
     def sample_goals(self):
         self.update_obj_pnp_goal()
         self.update_drawer_goal()
-        r = np.random.uniform()
+        r = random.uniform(0, 1)
         if r < 3/4:
             task = 'move_obj_pnp'
         else:
@@ -557,6 +547,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
             self.test_env_seed = np.random.choice(self.test_env_seeds)
         if self.test_env_seed:
             random.seed(self.test_env_seed)
+            np.random.seed(self.test_env_seed)
         if self.expl:
             self.reset_counter += 1
             if self.reset_interval == self.reset_counter:
@@ -632,8 +623,8 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
 
     ### Helper Functions
     def sample_object_color(self):
-        if np.random.uniform() < self.random_color_p:
-            return list(np.random.choice(range(256), size=3) / 255.0) + [1]
+        if random.uniform(0, 1) < self.random_color_p:
+            return list(random.choice(range(256), size=3) / 255.0) + [1]
         return None
 
     def get_drawer_handle_future_pos(self, coeff):
@@ -719,14 +710,14 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
             (self.on_top_drawer_goal, list(obj_to_be_on_drawer)),
             (self.out_of_drawer_goal, list(obj_to_be_out_of_drawer)),
         ]
-        np.random.shuffle(possible_goals)
+        random.shuffle(possible_goals)
 
         for (goal, can_interact_objs) in possible_goals:
             if len(can_interact_objs) != 0:
-                self.obj_pnp = np.random.choice(can_interact_objs)
+                self.obj_pnp = random.choice(can_interact_objs)
                 self.obj_pnp_goal = goal
         
-        self.goal_ee_yaw = np.random.uniform(-90, 90)
+        self.goal_ee_yaw = random.uniform(-90, 90)
 
     def update_drawer_goal(self):
         td_goal_coeff = td_close_coeff if self.handle_more_open_than_closed() else td_open_coeff
@@ -844,7 +835,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         if self.final_timestep and print_stages: print("drawer_yaw: ", self.drawer_yaw, ", drawer_frame_pos: ", get_drawer_frame_pos(self._top_drawer))
         return action, done
 
-    def move_obj_pnp(self, print_stages=True):
+    def move_obj_pnp(self, print_stages=False):
         ee_pos = self.get_end_effector_pos()
         target_pos = self.get_object_pos(self.obj_pnp)
         aligned = np.linalg.norm(target_pos[:2] - ee_pos[:2]) < 0.025
