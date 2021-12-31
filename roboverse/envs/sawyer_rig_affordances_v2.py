@@ -534,7 +534,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         self.update_obj_pnp_goal()
         self.update_drawer_goal()
         r = random.uniform(0, 1)
-        if r < 3/4:
+        if r < 2/3:
             task = 'move_obj_pnp'
         else:
             task = 'move_drawer'
@@ -702,7 +702,10 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
             obj_to_be_on_drawer = set(self._objs)
         
         if obj_in_drawer:
-            obj_to_be_out_of_drawer.add(obj_in_drawer)
+            if self.handle_more_open_than_closed():
+                obj_to_be_out_of_drawer.add(obj_in_drawer)
+            else:
+                obj_to_be_on_drawer.discard(obj_in_drawer)
         else:
             obj_to_be_in_drawer = set(self._objs)
         

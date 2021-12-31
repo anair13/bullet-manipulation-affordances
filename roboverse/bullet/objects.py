@@ -173,7 +173,7 @@ button_no_randomize = loader(ASSET_PATH, os.path.join(obj_dir, "button", "button
               pos=drawer_pos + np.array([0, 0, 0.2]),
               scale=0.25)
 
-drawer_lego = loader(PDATA_PATH, 'lego/lego.urdf',
+drawer_lego = loader(ASSET_PATH, os.path.join(obj_dir, "lego", "lego.urdf"), #loader(PDATA_PATH, 'lego/lego.urdf',
               pos=drawer_pos + np.array([-0.01, 0, 0.03]),
               quat=[0, 0, 1, 0],
               rgba=[0, 0, 1, 1],

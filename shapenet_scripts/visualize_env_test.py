@@ -17,7 +17,7 @@ env = rv.make(
 ts = 100
 num_traj = 100
 
-save_video = True
+save_video = False
 
 if save_video:
     video_save_path = '/2tb/home/patrickhaoy/data/test/'
