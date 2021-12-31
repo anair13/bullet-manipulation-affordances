@@ -11,8 +11,8 @@ env = rv.make(
     drawer_sliding=False, 
     env_obs_img_dim=196, 
     random_color_p=0.0, 
-    test_env=True, 
-    test_env_seed=1
+    # test_env=True, 
+    # test_env_seed=6
 )#, downsample=True)  
 ts = 100
 num_traj = 100
@@ -21,7 +21,7 @@ save_video = True
 
 if save_video:
     video_save_path = '/2tb/home/patrickhaoy/data/test/'
-    num_traj = 5
+    num_traj = 3
     observations = np.zeros((num_traj*ts, 196, 196, 3))
 
 for i in range(num_traj):

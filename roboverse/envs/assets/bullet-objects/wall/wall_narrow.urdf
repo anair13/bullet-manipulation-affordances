@@ -1,7 +1,7 @@
 <?xml version="0.0" ?>
 <robot name="bowl.urdf">
   <material name="mainColor">
-    <color rgba=".1 .8 .6 1."/>
+    <color rgba=".67 .67 .67 1."/>
   </material>
 <!--   <material name="mainColor">
     <color rgba=".55 .27 .1 1."/>

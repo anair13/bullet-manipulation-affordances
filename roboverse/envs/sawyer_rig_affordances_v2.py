@@ -249,7 +249,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         tray_pos = self.get_drawer_handle_future_pos(-.01)
         self._tray = bullet.objects.tray(quat=quat, pos=tray_pos, scale=0.0001)
 
-        if random.uniform(0, 1) < .5:
+        if np.random.uniform() < .5:
             close_drawer(self._top_drawer, 200)
 
         self._workspace = bullet.Sensor(self._sawyer,
@@ -259,7 +259,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
             self._sawyer, 'link_name', 'gripper_site')
     
     def sample_quat(self):
-        return deg_to_quat(np.random.randint(0, 360, size=3))
+        return deg_to_quat(np.array([random.randint(0, 360), random.randint(0, 360), random.randint(0, 360)]))
 
     def spawn_object(self, object_position=None, quat=None, rgba=[0, 1, 0, 1]):
         # Pick object if necessary and save information
@@ -547,7 +547,8 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
             self.test_env_seed = np.random.choice(self.test_env_seeds)
         if self.test_env_seed:
             random.seed(self.test_env_seed)
-            np.random.seed(self.test_env_seed)
+            ## We don't seed np.random since we want this to be random even with set test seeds
+            #np.random.seed(self.test_env_seed)
         if self.expl:
             self.reset_counter += 1
             if self.reset_interval == self.reset_counter:
