@@ -11,7 +11,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--name", type=str)
-parser.add_argument("--num_trajectories", type=int, default=8000)
+parser.add_argument("--num_trajectories", type=int, default=6000)
 parser.add_argument("--num_timesteps", type=int, default=100)
 parser.add_argument("--reset_interval", type=int, default=10)
 parser.add_argument("--downsample", action='store_true')
