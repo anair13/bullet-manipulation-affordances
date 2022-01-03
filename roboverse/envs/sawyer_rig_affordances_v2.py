@@ -107,10 +107,6 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         self.expert_policy_std = kwargs.pop('expert_policy_std', 0.1)
 
         # Tasks
-        self.task_dict = {
-            'move_drawer': lambda : self.move_drawer(),
-            'move_obj_pnp': lambda: self.move_obj_pnp(),
-        }
         self.curr_task = 'drawer'
 
         # Reset-free
@@ -721,13 +717,6 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
                 if len(can_interact_objs) != 0:
                     self.obj_pnp = random.choice(can_interact_objs)
                     self.obj_pnp_goal = goal
-            
-            if np.linalg.norm(self.get_object_pos(self.obj_pnp)[:2] - self.get_td_handle_pos()[:2]) < self.obj_thresh \
-                or np.linalg.norm(self.get_object_pos(self.obj_pnp)[:2] - self.in_drawer_goal[:2]) < self.obj_thresh:
-                self.goal_ee_yaw = self.drawer_yaw + 90
-            else:
-                self.goal_ee_yaw = self.drawer_yaw 
-            #self.goal_ee_yaw = random.uniform(0, 180)
         else:
             target_location_to_goal = {
                 "top": self.on_top_drawer_goal,
@@ -736,8 +725,13 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
             }
             self.obj_pnp = self._objs[task_info['obj_idx']]
             self.obj_pnp_goal = target_location_to_goal[task_info['target_location']]
-            # self.goal_ee_yaw = task_info['goal_ee_yaw']
     
+        if np.linalg.norm(self.get_object_pos(self.obj_pnp)[:2] - self.get_td_handle_pos()[:2]) < self.obj_thresh \
+            or np.linalg.norm(self.get_object_pos(self.obj_pnp)[:2] - self.in_drawer_goal[:2]) < self.obj_thresh:
+            self.goal_ee_yaw = self.drawer_yaw + 90
+        else:
+            self.goal_ee_yaw = self.drawer_yaw 
+            
         # Add some randomness in case it gets stuck
         self.goal_ee_yaw += np.random.uniform(0, 10)
             
@@ -770,7 +764,11 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         if self.drawer_sliding:
             self.td_goal = self.get_drawer_handle_future_pos(self.td_goal_coeff) # update goal in case drawer slides
 
-        action, done = self.task_dict[self.curr_task]()
+        task_dict = {
+            'move_drawer': lambda : self.move_drawer(),
+            'move_obj_pnp': lambda: self.move_obj_pnp(),
+        }
+        action, done = task_dict[self.curr_task]()
 
         if first_timestep:
             self.trajectory_done = False

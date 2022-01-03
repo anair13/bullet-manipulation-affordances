@@ -2,9 +2,7 @@ import roboverse as rv
 import numpy as np
 import skvideo.io
 
-import sys
-sys.path.insert(1, '/2tb/home/patrickhaoy/data/affordances/data/antialias_reset_free_rotated_semicircle_top_drawer_pnp')
-import task0_command
+from experiments.kuanfang.iql.drawer_pnp_commands import drawer_pnp_commands
 
 #obs_img_dim=196, 
 env = rv.make(
@@ -16,7 +14,7 @@ env = rv.make(
     env_obs_img_dim=196, 
     random_color_p=0.0, 
     # test_env=True, 
-    # test_env_command=task0_command.command,
+    # test_env_command=drawer_pnp_commands[0],
     # expert_policy_std=0.05,
 )#, downsample=True)  
 ts = 100
