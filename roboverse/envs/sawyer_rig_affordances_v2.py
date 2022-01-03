@@ -26,10 +26,10 @@ gripper_bounding_x = [.5, .8] #[.46, .84] #[0.4704, 0.8581]
 gripper_bounding_y = [-.17, .17] #[-0.1989, 0.2071]
 
 tasks = [
-    "open_drawer", "close_drawer", 
-    "move_object_top_to_out", "move_object_out_to_top",
-    "move_object_in_to_out", "move_object_out_to_in",
-    "move_object_top_to_in", "move_object_in_to_out",
+    "move_drawer", 
+    "move_object_to_top",
+    "move_object_to_in",
+    "move_object_to_out",
 ]
 
 class SawyerRigAffordancesV2(SawyerBaseEnv):
@@ -43,8 +43,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
                  transpose_image=False,
                  invisible_robot=False,
                  object_subset='test',
-                 use_bounding_box=True,
-                 random_color_p=1.0,
+                 random_color_p=0.0,
                  spawn_prob=0.75,
                  task='goal_reaching',
                  test_env=False,
@@ -85,13 +84,9 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         self.task = task
         self.DoF = DoF
         self.test_env = test_env
-        self.use_multiple_goals = kwargs.pop('use_multiple_goals', False)
-        self.test_env_seed = kwargs.pop('test_env_seed', None) if self.test_env else None
-        self.test_env_seeds = kwargs.pop('test_env_seeds', None) if self.test_env else None
-
+        self.test_env_command = kwargs.pop('test_env_command', None)
         if self.test_env:
-            self.random_color_p = 0.0
-            self.object_subset = kwargs.pop('test_object_subset', ['grill_trash_can'])
+            assert self.test_env_command
 
         self.obj_thresh = 0.08
         self.drawer_thresh = 0.065
@@ -115,12 +110,15 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         self.task_dict = {
             'move_drawer': lambda : self.move_drawer(),
             'move_obj_pnp': lambda: self.move_obj_pnp(),
-            'move_obj_slide': lambda: self.move_obj_slide(),
         }
         self.curr_task = 'drawer'
 
         # Reset-free
-        self.reset_interval = kwargs.pop('reset_interval', 1)
+        if self.test_env:
+            kwargs.pop('reset_interval', 1)
+            self.reset_interval = len(self.test_env_command['command_sequence'])
+        else:
+            self.reset_interval = kwargs.pop('reset_interval', 1)
         self.reset_counter = self.reset_interval-1
         self.expl = kwargs.pop('expl', False)
         self.trajectory_done = False
@@ -129,6 +127,9 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
 
         # Drawer
         self.gripper_has_been_above = False
+
+        # Objects
+        self.obj_rgbas = [[0.93, .294, .169, 1], [.5, 1., 0., 1], [0., .502, .502, 1]] # red, yellow green, teal
 
         # Anti-aliasing
         self.downsample = kwargs.pop('downsample', False)
@@ -142,10 +143,6 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         self._pos_init = [0.6, -0.15, -0.2]
         self._pos_low = [0.5,-0.2,-.36]
         self._pos_high = [0.85,0.2,-0.1]
-
-        # # Speed up rendering
-        # egl = pkgutil.get_loader('eglRenderer')
-        # eglPluginId = p.loadPlugin(egl.get_filename(), "_eglRendererPlugin")
 
     def _set_spaces(self):
         act_dim = self.DoF + 1
@@ -179,12 +176,12 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         # self._debug2 = bullet.objects.button(pos=[gripper_bounding_x[1], gripper_bounding_y[1], -.35])
 
         ## Top Drawer
-        if self.test_env and not self.test_env_seed:
-            self.drawer_yaw = 180
-            drawer_frame_pos = np.array([.6, -.19, -.34])
+        if self.test_env:
+            self.drawer_yaw = self.test_env_command['drawer_yaw']
+            drawer_frame_pos = self.test_env_command['drawer_pos']
         else:
             self.drawer_yaw = random.uniform(0, 180)
-   
+
             tries = 0
             while(True):
                 drawer_frame_pos = np.array([random.uniform(gripper_bounding_x[0], gripper_bounding_x[1]), random.uniform(gripper_bounding_y[0], gripper_bounding_y[1]), -.34])
@@ -195,19 +192,9 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
                 tries += 1
                 if (tries > 25):
                     self.drawer_yaw = random.uniform(0, 180)
+
         quat = deg_to_quat([0, 0, self.drawer_yaw])
         
-        # For debugging: hardcode drawer_yaw and drawer_frame_pos
-        # self.drawer_yaw = 160.10009720998795
-        # rot = Rotation.from_euler('xyz', [0, 0, self.drawer_yaw], degrees=True)
-        # quat = rot.as_quat()
-        # drawer_frame_pos = np.array(list((0.6351875030272269, -0.10053104435094253, -0.34)))
-        #drawer_yaw:  160.10009720998795 , drawer_frame_pos:  (0.6351875030272269, -0.10053104435094253, -0.34)
-
-        # drawer_frame_pos = np.array([gripper_bounding_x[1], gripper_bounding_y[0], -.34])
-        # self.drawer_yaw = 180
-        # quat = deg_to_quat([0, 0, self.drawer_yaw])
-
         if self.drawer_sliding:
             self._top_drawer = bullet.objects.drawer_sliding_lightblue_base(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color())
         else:
@@ -218,39 +205,58 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         self.init_handle_pos = get_drawer_handle_pos(self._top_drawer)[1]
 
         ## Objects
-        objects_within_gripper_range = False
         self._objs = []
-        tries = 0
-        while(not objects_within_gripper_range):
-            for obj in self._objs:
-                p.removeBody(obj)
-            self._objs = []
+        self._init_objs_pos = []
+        if self.test_env:
+            self._init_objs_pos = self.test_env_command['objects_pos']
+            for rgba, pos in zip(self.obj_rgbas, self._init_objs_pos):
+                low, high = np.array(self.test_env_command['objects_pos_randomness']['low']), np.array(self.test_env_command['objects_pos_randomness']['high'])
+                random_position = pos + np.random.uniform(low=low, high=high)
+                self._objs.append(self.spawn_object(object_position=random_position, rgba=rgba))
+        else:
+            objects_within_gripper_range = False
+            tries = 0
+            while(not objects_within_gripper_range):
+                for obj in self._objs:
+                    p.removeBody(obj)
+                self._objs = []
 
-            self.get_obj_pnp_goals()
-            for rgba, pos in zip([[0.93, .294, .169, 1], [.5, 1., 0., 1], [0., .502, .502, 1]], [self.on_top_drawer_goal, self.in_drawer_goal, self.out_of_drawer_goal]):
-                if random.uniform(0, 1) < .5:
-                    pos = self.out_of_drawer_goal + np.array([0, 0, 0.5])
-                    self.get_obj_pnp_goals()
-                self._objs.append(self.spawn_object(object_position=pos, rgba=rgba))
-            
-            objects_within_gripper_range = True
-            for obj in self._objs:
-                pos, _ = get_object_position(obj)
-                if not (gripper_bounding_x[0] - .04 <= pos[0] and pos[0] <= gripper_bounding_x[1] + .04 \
-                    and gripper_bounding_y[0] - .04 <= pos[1] and pos[1] <= gripper_bounding_y[1] + .04):
-                    objects_within_gripper_range = False
+                self.get_obj_pnp_goals()
+                # red, yellow green, teal
+                for rgba, pos in zip(self.obj_rgbas, [self.on_top_drawer_goal, self.in_drawer_goal, self.out_of_drawer_goal]):
+                    if random.uniform(0, 1) < .5:
+                        pos = self.out_of_drawer_goal + np.array([0, 0, 0.5])
+                        self.get_obj_pnp_goals()
+                    self._init_objs_pos.append(pos)
+                    self._objs.append(self.spawn_object(object_position=pos, rgba=rgba))
+                
+                objects_within_gripper_range = True
+                for obj in self._objs:
+                    pos, _ = get_object_position(obj)
+                    if not (gripper_bounding_x[0] - .04 <= pos[0] and pos[0] <= gripper_bounding_x[1] + .04 \
+                        and gripper_bounding_y[0] - .04 <= pos[1] and pos[1] <= gripper_bounding_y[1] + .04):
+                        objects_within_gripper_range = False
+                        break
+                        
+                tries += 1
+                if tries > 10:
                     break
-                    
-            tries += 1
-            if tries > 10:
-                break
+
+        # print("drawer_yaw: ", self.drawer_yaw)
+        # print("drawer_pos: ", drawer_frame_pos)
+        # print("init objects pos: ", self._init_objs_pos)
+        # print("objs pos: ", [self.get_object_pos(obj) for obj in self._objs])
 
         # Tray acts as stopper for drawer closing
         tray_pos = self.get_drawer_handle_future_pos(-.01)
         self._tray = bullet.objects.tray(quat=quat, pos=tray_pos, scale=0.0001)
 
-        if np.random.uniform() < .5:
-            close_drawer(self._top_drawer, 200)
+        if self.test_env:
+            if not self.test_env_command['drawer_open']: 
+                close_drawer(self._top_drawer, 200)
+        else:
+            if np.random.uniform() < .5:
+                close_drawer(self._top_drawer, 200)
 
         self._workspace = bullet.Sensor(self._sawyer,
             xyz_min=self._pos_low, xyz_max=self._pos_high,
@@ -263,10 +269,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
 
     def spawn_object(self, object_position=None, quat=None, rgba=[0, 1, 0, 1]):
         # Pick object if necessary and save information
-        if object_position is None:
-            object_position = self.sample_object_location()
-        if object_position is None:
-            return
+        assert object_position is not None
 
         # Generate quaterion if none is given
         if quat is None:
@@ -284,13 +287,6 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
             bullet.step()
         
         return obj
-    
-    def sample_object_location(self):
-        if self.test_env:
-            obj_pos = np.array([.85, -.15, 0])
-        else:
-            obj_pos = np.array([random.uniform(gripper_bounding_x[0], gripper_bounding_x[1]), random.uniform(gripper_bounding_y[0], gripper_bounding_y[1]), 0])
-        return obj_pos
 
     def _format_action(self, *action):
         if len(action) == 1:
@@ -531,24 +527,29 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         return reward
 
     def sample_goals(self):
-        self.update_obj_pnp_goal()
-        self.update_drawer_goal()
-        r = random.uniform(0, 1)
-        if r < 2/3:
-            task = 'move_obj_pnp'
+        if self.test_env:
+            task, task_info = self.test_env_command['command_sequence'][self.reset_counter]
+            if task == 'move_drawer':
+                self.update_drawer_goal(task_info)
+                self.update_obj_pnp_goal()
+            elif task == 'move_obj_pnp':
+                self.update_drawer_goal()
+                self.update_obj_pnp_goal(task_info)
+            else:
+                assert False, 'not a valid task'
         else:
-            task = 'move_drawer'
+            self.update_obj_pnp_goal()
+            self.update_drawer_goal()
+            r = random.uniform(0, 1)
+            if r < 2/3:
+                task = 'move_obj_pnp'
+            else:
+                task = 'move_drawer'
         
         self.update_goal_state()
         return task
 
     def reset(self):
-        if self.use_multiple_goals:
-            self.test_env_seed = np.random.choice(self.test_env_seeds)
-        if self.test_env_seed:
-            random.seed(self.test_env_seed)
-            ## We don't seed np.random since we want this to be random even with set test seeds
-            #np.random.seed(self.test_env_seed)
         if self.expl:
             self.reset_counter += 1
             if self.reset_interval == self.reset_counter:
@@ -687,43 +688,52 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         
         return obj_in_drawer, obj_on_drawer
 
-    def update_obj_pnp_goal(self):
+    def update_obj_pnp_goal(self, task_info=None):
         self.get_obj_pnp_goals()
-
         obj_in_drawer, obj_on_drawer = self.get_drawer_objs()
 
-        obj_to_be_in_drawer = set()
-        obj_to_be_on_drawer = set()
-        obj_to_be_out_of_drawer = set()
-        
-        if obj_on_drawer:
-            obj_to_be_out_of_drawer.add(obj_on_drawer)
-        else:
-            obj_to_be_on_drawer = set(self._objs)
-        
-        if obj_in_drawer:
-            if self.handle_more_open_than_closed():
-                obj_to_be_out_of_drawer.add(obj_in_drawer)
+        if task_info is None:
+            obj_to_be_in_drawer = set()
+            obj_to_be_on_drawer = set()
+            obj_to_be_out_of_drawer = set()
+            
+            if obj_on_drawer:
+                obj_to_be_out_of_drawer.add(obj_on_drawer)
             else:
-                obj_to_be_on_drawer.discard(obj_in_drawer)
+                obj_to_be_on_drawer = set(self._objs)
+            
+            if obj_in_drawer:
+                if self.handle_more_open_than_closed():
+                    obj_to_be_out_of_drawer.add(obj_in_drawer)
+                else:
+                    obj_to_be_on_drawer.discard(obj_in_drawer)
+            else:
+                obj_to_be_in_drawer = set(self._objs)
+            
+            possible_goals = [
+                (self.in_drawer_goal, list(obj_to_be_in_drawer)),
+                (self.on_top_drawer_goal, list(obj_to_be_on_drawer)),
+                (self.out_of_drawer_goal, list(obj_to_be_out_of_drawer)),
+            ]
+            random.shuffle(possible_goals)
+
+            for (goal, can_interact_objs) in possible_goals:
+                if len(can_interact_objs) != 0:
+                    self.obj_pnp = random.choice(can_interact_objs)
+                    self.obj_pnp_goal = goal
+            self.goal_ee_yaw = random.uniform(-90, 90)
         else:
-            obj_to_be_in_drawer = set(self._objs)
-        
-        possible_goals = [
-            (self.in_drawer_goal, list(obj_to_be_in_drawer)),
-            (self.on_top_drawer_goal, list(obj_to_be_on_drawer)),
-            (self.out_of_drawer_goal, list(obj_to_be_out_of_drawer)),
-        ]
-        random.shuffle(possible_goals)
+            target_location_to_goal = {
+                "top": self.on_top_drawer_goal,
+                "in": self.in_drawer_goal,
+                "out": self.out_of_drawer_goal,
+            }
+            self.obj_pnp = self._objs[task_info['obj_idx']]
+            self.obj_pnp_goal = target_location_to_goal[task_info['target_location']]
+            self.goal_ee_yaw = task_info['goal_ee_yaw']
+            
 
-        for (goal, can_interact_objs) in possible_goals:
-            if len(can_interact_objs) != 0:
-                self.obj_pnp = random.choice(can_interact_objs)
-                self.obj_pnp_goal = goal
-        
-        self.goal_ee_yaw = random.uniform(-90, 90)
-
-    def update_drawer_goal(self):
+    def update_drawer_goal(self, task_info=None):
         td_goal_coeff = td_close_coeff if self.handle_more_open_than_closed() else td_open_coeff
         drawer_handle_goal_pos = self.get_drawer_handle_future_pos(td_goal_coeff)
         
@@ -753,28 +763,18 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
 
         action, done = self.task_dict[self.curr_task]()
 
-        if self.expl:
-            if first_timestep:
-                self.trajectory_done = False
-                self.gripper_has_been_above = False
-                action = np.array([0, 0, 1, 0])
-            if done or final_timestep:
-                self.trajectory_done = True
+        if first_timestep:
+            self.trajectory_done = False
+            self.gripper_has_been_above = False
+            action = np.array([0, 0, 1, 0])
+        if done or final_timestep:
+            self.trajectory_done = True
 
-            if self.trajectory_done:
-                action = np.array([0, 0, 1, 0, -1])
-            else:
-                action = np.append(action, [self.grip])
-                action = np.random.normal(action, self.expert_policy_std)
+        if self.trajectory_done:
+            action = np.array([0, 0, 1, 0, -1])
         else:
-            if done:
-                #self.get_reward(print_stats=True)
-                self.sample_goals()
-
-                action = np.array([0, 0, 1, 0, -1])
-            else:
-                action = np.append(action, [self.grip])
-                action = np.random.normal(action, self.expert_policy_std)
+            action = np.append(action, [self.grip])
+            action = np.random.normal(action, self.expert_policy_std)
 
         action = np.clip(action, a_min=-1, a_max=1)
         self.timestep += 1

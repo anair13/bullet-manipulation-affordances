@@ -35,6 +35,7 @@ video_save_path = prefix + args.name + "_video"
 
 kwargs = {
     'drawer_sliding': args.drawer_sliding,
+    'expert_policy_std': 0.05,
 }
 if args.downsample:
     kwargs['downsample'] = True
