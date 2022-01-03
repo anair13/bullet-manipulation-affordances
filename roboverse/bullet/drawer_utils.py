@@ -8,8 +8,8 @@ def open_drawer(drawer, num_ts=None, render_obs=None):
     return slide_drawer(drawer, -1, num_ts=num_ts, render_obs=render_obs)
 
 
-def close_drawer(drawer):
-    return slide_drawer(drawer, 1)
+def close_drawer(drawer, num_ts=None, render_obs=None):
+    return slide_drawer(drawer, 1, num_ts=num_ts, render_obs=render_obs)
 
 
 def get_drawer_base_joint(drawer):
