@@ -721,7 +721,13 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
                 if len(can_interact_objs) != 0:
                     self.obj_pnp = random.choice(can_interact_objs)
                     self.obj_pnp_goal = goal
-            self.goal_ee_yaw = random.uniform(-90, 90)
+            
+            if np.linalg.norm(self.get_object_pos(self.obj_pnp)[:2] - self.get_td_handle_pos()[:2]) < self.obj_thresh \
+                or np.linalg.norm(self.get_object_pos(self.obj_pnp)[:2] - self.in_drawer_goal[:2]) < self.obj_thresh:
+                self.goal_ee_yaw = self.drawer_yaw + 90
+            else:
+                self.goal_ee_yaw = self.drawer_yaw 
+            #self.goal_ee_yaw = random.uniform(0, 180)
         else:
             target_location_to_goal = {
                 "top": self.on_top_drawer_goal,
@@ -730,7 +736,10 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
             }
             self.obj_pnp = self._objs[task_info['obj_idx']]
             self.obj_pnp_goal = target_location_to_goal[task_info['target_location']]
-            self.goal_ee_yaw = task_info['goal_ee_yaw']
+            # self.goal_ee_yaw = task_info['goal_ee_yaw']
+    
+        # Add some randomness in case it gets stuck
+        self.goal_ee_yaw += np.random.uniform(0, 10)
             
 
     def update_drawer_goal(self, task_info=None):
@@ -755,7 +764,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         #self.get_reward(print_stats=True)
         return reset_obs
 
-    def get_demo_action(self, first_timestep=False, final_timestep=False):
+    def get_demo_action(self, first_timestep=False, final_timestep=False, return_done=False):
         self.final_timestep = final_timestep
         
         if self.drawer_sliding:
@@ -779,6 +788,8 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         action = np.clip(action, a_min=-1, a_max=1)
         self.timestep += 1
 
+        if return_done:
+            return action, done
         return action
     
     def move_drawer(self, print_stages=False):
@@ -810,18 +821,22 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         if not self.gripper_has_been_above:
             if print_stages: print('Stage 1')
             action = np.array([0, 0, 1, 0])
-        # Stage 2: align gripper yaw
-        elif gripper_yaw_aligned:
-            if print_stages: print('Stage 2')
-            if goal_ee_yaw > ee_yaw:
-                action = np.array([0, 0, 0, 1])
-            else:
-                action = np.array([0, 0, 0, -1])
-        # Stage 3: align gripper position with handle position
-        elif not gripper_pos_xy_aligned:
-            if print_stages: print('Stage 3')
-            xy_action = (ee_early_stage_goal_pos - ee_pos) * 6
-            action = np.array([xy_action[0], xy_action[1], 0, 0])
+        # Do stage 2 and 3 at the same time
+        elif gripper_yaw_aligned or not gripper_pos_xy_aligned:
+            # Stage 2: align gripper yaw
+            action = np.zeros((4,))
+            if gripper_yaw_aligned:
+                if print_stages: print('Stage 2')
+                if goal_ee_yaw > ee_yaw:
+                    action[3] = 1
+                else:
+                    action[3] = -1
+            # Stage 3: align gripper position with handle position
+            if not gripper_pos_xy_aligned:
+                if print_stages: print('Stage 3')
+                xy_action = (ee_early_stage_goal_pos - ee_pos) * 6
+                action[0] = xy_action[0]
+                action[1] = xy_action[1]
         # Stage 4: lower gripper around handle
         elif gripper_pos_xy_aligned and not gripper_pos_z_aligned:
             if print_stages: print('Stage 4')
@@ -849,31 +864,36 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         above = ee_pos[2] >= -0.125
 
         ee_yaw = self.get_end_effector_theta()[2]
-        goal_ee_yaw = self.goal_ee_yaw
-        # if 0 <= self.drawer_yaw < 90:
-        #     goal_ee_yaw = self.drawer_yaw - 90
-        # elif 90 <= self.drawer_yaw < 270:
-        #     goal_ee_yaw = self.drawer_yaw - 90
+        if np.linalg.norm(self.goal_ee_yaw - ee_yaw) < np.linalg.norm(self.goal_ee_yaw - 180 + ee_yaw):
+            goal_ee_yaw = self.goal_ee_yaw
+        else:
+            goal_ee_yaw = self.goal_ee_yaw - 180
+        # if 0 <= self.goal_ee_yaw < 90:
+        #     goal_ee_yaw = self.goal_ee_yaw - 90
+        # elif 90 <= self.goal_ee_yaw < 270:
+        #     goal_ee_yaw = self.goal_ee_yaw - 90
         # else:
-        #     goal_ee_yaw = self.drawer_yaw - 360 + 90
+        #     goal_ee_yaw = self.goal_ee_yaw - 360 + 90
         gripper_yaw_aligned = np.linalg.norm(goal_ee_yaw - ee_yaw) > 5
 
         if not aligned and not above:
             if print_stages: print('Stage 1')
             action = np.array([0.,0., 1., 0.])
             self.grip = -1.
-        elif gripper_yaw_aligned:
-            if print_stages: print('Stage 2')
-            if goal_ee_yaw > ee_yaw:
-                action = np.array([0, 0, 0, 1])
-            else:
-                action = np.array([0, 0, 0, -1])
-        elif not aligned:
-            if print_stages: print('Stage 3')
-            diff = (target_pos - ee_pos) * 3.0
-            action = np.array([diff[0], diff[1], 0., 0.])
-            action *= 2.0
-            self.grip = -1.
+        elif gripper_yaw_aligned or not aligned:
+            action = np.zeros((4,))
+            if gripper_yaw_aligned:
+                if print_stages: print('Stage 2')
+                if goal_ee_yaw > ee_yaw:
+                    action[3] = 1
+                else:
+                    action[3] = -1
+            if not aligned:
+                if print_stages: print('Stage 3')
+                diff = (target_pos - ee_pos) * 3.0 * 2.0
+                action[0] = diff[0]
+                action[1] = diff[1]
+                self.grip = -1.
         elif aligned and not enclosed and self.grip < 1:
             if print_stages: print('Stage 4')
             diff = target_pos - ee_pos
