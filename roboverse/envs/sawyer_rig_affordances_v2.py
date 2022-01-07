@@ -327,7 +327,20 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
 
     def get_success_metric(self, curr_state, goal_state, success_list=None, key=None):
         success = 0
-        if key == 'top_drawer':
+        if key == "overall":
+            curr_pos = curr_state[8:11]
+            goal_pos = goal_state[8:11]
+            curr_pos_0 = curr_state[11:14]
+            goal_pos_0 = goal_state[11:14]
+            curr_pos_1 = curr_state[14:17]
+            goal_pos_1 = goal_state[14:17]
+            curr_pos_2 = curr_state[17:20]
+            goal_pos_2 = goal_state[17:20]
+            success = int(self.drawer_done(curr_pos, goal_pos))\
+                and int(self.obj_pnp_done(curr_pos_0, goal_pos_0)) \
+                and int(self.obj_pnp_done(curr_pos_1, goal_pos_1)) \
+                and int(self.obj_pnp_done(curr_pos_2, goal_pos_2))
+        elif key == 'top_drawer':
             curr_pos = curr_state[8:11]
             goal_pos = goal_state[8:11]
             success = int(self.drawer_done(curr_pos, goal_pos))
@@ -445,7 +458,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         state_key = "state_observation"
         goal_key = "state_desired_goal"
 
-        success_keys = ["top_drawer", "obj_pnp", "obj_pnp_0", "obj_pnp_1", "obj_pnp_2", "gripper_position", "gripper_rotation_roll", "gripper_rotation_pitch", "gripper_rotation_yaw", "gripper_rotation", "gripper"]
+        success_keys = ["overall", "top_drawer", "obj_pnp", "obj_pnp_0", "obj_pnp_1", "obj_pnp_2", "gripper_position", "gripper_rotation_roll", "gripper_rotation_pitch", "gripper_rotation_yaw", "gripper_rotation", "gripper"]
         distance_keys = ["top_drawer", "obj_pnp", "obj_pnp_0", "obj_pnp_1", "obj_pnp_2", "gripper_position", "gripper_rotation_roll", "gripper_rotation_pitch", "gripper_rotation_yaw", "gripper_rotation"]
 
         dict_of_success_lists = {}

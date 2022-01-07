@@ -31,7 +31,7 @@ args = parser.parse_args()
 num_timesteps = args.num_timesteps
 num_trajectories = args.num_trajectories
 save_last_k_steps = args.save_last_k_steps
-ROOT_PATH = "/2tb/home/patrickhaoy/data/affordances/data/antialias_reset_free_rotated_semicircle_top_drawer_pnp/"
+ROOT_PATH = "/2tb/home/patrickhaoy/data/affordances/data/antialias_reset_free_rotated_semicircle_top_drawer_pnp_v2/"
 
 for test_env_seed in args.test_env_seeds:
     data_save_path = ROOT_PATH + "td_pnp_goals_seed{}.pkl".format(str(test_env_seed))

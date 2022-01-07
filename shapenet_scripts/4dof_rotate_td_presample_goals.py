@@ -20,8 +20,8 @@ parser.add_argument("--gui", dest="gui", action="store_true", default=False)
 
 args = parser.parse_args()
 
-data_save_path = "/2tb/home/patrickhaoy/data/affordances/data/reset_free_v5_rotated_top_drawer/top_drawer_goals.pkl"
-#data_save_path = "/2tb/home/patrickhaoy/data/affordances/test/top_drawer_goals.pkl"
+#data_save_path = "/2tb/home/patrickhaoy/data/affordances/data/reset_free_v5_rotated_top_drawer/top_drawer_goals.pkl"
+data_save_path = "/2tb/home/patrickhaoy/data/affordances/test/top_drawer_goals.pkl"
 
 kwargs = {}
 if args.downsample:

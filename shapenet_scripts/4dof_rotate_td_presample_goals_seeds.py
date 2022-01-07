@@ -47,6 +47,7 @@ for test_env_seed in test_env_seeds:
         'new_view': True if args.new_view else False,
         'close_view': True if args.close_view else False,
         'red_drawer_base': True if args.red_drawer_base else False,
+        'gui': True if args.gui else False
     }
     if args.downsample:
         kwargs['downsample'] = True
