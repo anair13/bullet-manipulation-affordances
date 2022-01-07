@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser()
 # parser.add_argument("--name", type=str)
 parser.add_argument("--num_trajectories", type=int, default=100)
 parser.add_argument("--num_timesteps", type=int, default=100)
-parser.add_argument("--save_last_k_steps", type=int, default=50)
+parser.add_argument("--save_last_k_steps", type=int, default=25)
 parser.add_argument("--downsample", action='store_true')
 parser.add_argument("--drawer_sliding", action='store_true')
 parser.add_argument("--test_env_seeds", nargs='+', type=int)
@@ -64,28 +64,39 @@ for test_env_seed in args.test_env_seeds:
     }
 
     for i in tqdm(range(num_trajectories)):
-        env.demo_reset()
-        init_img = np.uint8(env.render_obs()).transpose() / 255.0
+        is_done = False
+        ## If task isn't done, scripted policy failed, so recollect samples.
+        while not is_done:
+            is_done = True
 
-        ## All but final skill
-        for j0 in range(len(command['command_sequence']) - 1):
-            for j1 in range(num_timesteps):
-                action = env.get_demo_action(first_timestep=(j1 == 0), final_timestep=(j1 == num_timesteps - 1))
-                obs, reward, done, info = env.step(action)
             env.demo_reset()
-        
-        ## Final skill
-        for j in range(num_timesteps):
-            action = env.get_demo_action(first_timestep=(j == 0), final_timestep=(j == num_timesteps - 1))
-            obs, reward, done, info = env.step(action)
+            init_img = np.uint8(env.render_obs()).transpose() / 255.0
 
-            if j + save_last_k_steps >= num_timesteps:
-                img = np.uint8(env.render_obs()).transpose() / 255.0
+            ## All but final skill
+            for j0 in range(len(command['command_sequence']) - 1):
+                skill_is_done = False
+                for j1 in range(num_timesteps):
+                    action, done = env.get_demo_action(first_timestep=(j1 == 0), final_timestep=(j1 == num_timesteps - 1), return_done=True)
+                    obs, reward, _, info = env.step(action)
+                    skill_is_done = skill_is_done or done
+                is_done = is_done and skill_is_done
+                env.demo_reset()
+            
+            ## Final skill
+            skill_is_done = False
+            for j in range(num_timesteps):
+                action, done = env.get_demo_action(first_timestep=(j == 0), final_timestep=(j == num_timesteps - 1), return_done=True)
+                obs, reward, _, info = env.step(action)
+                skill_is_done = skill_is_done or done
 
-                j_o = j - (num_timesteps - save_last_k_steps)
-                dataset['state_desired_goal'][i * save_last_k_steps + j_o] = obs['state_achieved_goal']
-                dataset['image_desired_goal'][i * save_last_k_steps + j_o] = img.flatten()
-                dataset['initial_image_observation'][i * save_last_k_steps + j_o] = init_img.flatten()
+                if j + save_last_k_steps >= num_timesteps:
+                    img = np.uint8(env.render_obs()).transpose() / 255.0
+
+                    j_o = j - (num_timesteps - save_last_k_steps)
+                    dataset['state_desired_goal'][i * save_last_k_steps + j_o] = obs['state_achieved_goal']
+                    dataset['image_desired_goal'][i * save_last_k_steps + j_o] = img.flatten()
+                    dataset['initial_image_observation'][i * save_last_k_steps + j_o] = init_img.flatten()
+            is_done = is_done and skill_is_done
 
     file = open(data_save_path, 'wb')
     pkl.dump(dataset, file)

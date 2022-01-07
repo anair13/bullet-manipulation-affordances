@@ -205,8 +205,9 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         self._init_objs_pos = []
         if self.test_env:
             self._init_objs_pos = self.test_env_command['objects_pos']
-            for rgba, pos in zip(self.obj_rgbas, self._init_objs_pos):
-                low, high = np.array(self.test_env_command['objects_pos_randomness']['low']), np.array(self.test_env_command['objects_pos_randomness']['high'])
+            self._init_objs_pos_randomness = self.test_env_command['objects_pos_randomness']
+            for rgba, pos, pos_randomness in zip(self.obj_rgbas, self._init_objs_pos, self._init_objs_pos_randomness):
+                low, high = np.array(pos_randomness['low']), np.array(pos_randomness['high'])
                 random_position = pos + np.random.uniform(low=low, high=high)
                 self._objs.append(self.spawn_object(object_position=random_position, rgba=rgba))
         else:
