@@ -36,6 +36,9 @@ video_save_path = prefix + args.name + "_video"
 kwargs = {
     'drawer_sliding': args.drawer_sliding,
     'expert_policy_std': 0.05,
+    # 'fixed_drawer_yaw': 24.18556394023222,
+    # 'fixed_drawer_pos': np.array([0.50850424, 0.11416014, -0.34]),
+    # 'use_single_obj_idx': 1,
 }
 if args.downsample:
     kwargs['downsample'] = True

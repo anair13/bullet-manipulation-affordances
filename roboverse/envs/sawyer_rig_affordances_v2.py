@@ -123,9 +123,13 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
 
         # Drawer
         self.gripper_has_been_above = False
+        self.fixed_drawer_yaw = kwargs.pop('fixed_drawer_yaw', None)
+        self.fixed_drawer_pos = kwargs.pop('fixed_drawer_pos', None)
 
         # Objects
         self.obj_rgbas = [[0.93, .294, .169, 1], [.5, 1., 0., 1], [0., .502, .502, 1]] # red, yellow green, teal
+        self.use_single_obj_idx = kwargs.pop('use_single_obj_idx', None)
+        self.obj_pnp = None
 
         # Anti-aliasing
         self.downsample = kwargs.pop('downsample', False)
@@ -176,18 +180,20 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
             self.drawer_yaw = self.test_env_command['drawer_yaw']
             drawer_frame_pos = self.test_env_command['drawer_pos']
         else:
-            self.drawer_yaw = random.uniform(0, 180)
-
-            tries = 0
-            while(True):
-                drawer_frame_pos = np.array([random.uniform(gripper_bounding_x[0], gripper_bounding_x[1]), random.uniform(gripper_bounding_y[0], gripper_bounding_y[1]), -.34])
-                drawer_handle_open_goal_pos = drawer_frame_pos + td_open_coeff * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])
-                if gripper_bounding_x[0] <= drawer_handle_open_goal_pos[0] <= gripper_bounding_x[1] \
-                    and gripper_bounding_y[0] <= drawer_handle_open_goal_pos[1] <= gripper_bounding_y[1]:
-                    break
-                tries += 1
-                if (tries > 25):
-                    self.drawer_yaw = random.uniform(0, 180)
+            self.drawer_yaw = self.fixed_drawer_yaw if self.fixed_drawer_yaw else random.uniform(0, 180)
+            if self.fixed_drawer_pos is not None:
+                drawer_frame_pos = self.fixed_drawer_pos
+            else:
+                tries = 0
+                while(True):
+                    drawer_frame_pos = np.array([random.uniform(gripper_bounding_x[0], gripper_bounding_x[1]), random.uniform(gripper_bounding_y[0], gripper_bounding_y[1]), -.34])
+                    drawer_handle_open_goal_pos = drawer_frame_pos + td_open_coeff * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])
+                    if gripper_bounding_x[0] <= drawer_handle_open_goal_pos[0] <= gripper_bounding_x[1] \
+                        and gripper_bounding_y[0] <= drawer_handle_open_goal_pos[1] <= gripper_bounding_y[1]:
+                        break
+                    tries += 1
+                    if (tries > 25):
+                        self.drawer_yaw = random.uniform(0, 180)
 
         quat = deg_to_quat([0, 0, self.drawer_yaw])
         
@@ -204,9 +210,13 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         self._objs = []
         self._init_objs_pos = []
         if self.test_env:
+            if self.use_single_obj_idx:
+                obj_rgbas = self.obj_rgbas[self.use_single_obj_idx:self.use_single_obj_idx+1]
+            else:
+                obj_rgbas = self.obj_rgbas
             self._init_objs_pos = self.test_env_command['objects_pos']
             self._init_objs_pos_randomness = self.test_env_command['objects_pos_randomness']
-            for rgba, pos, pos_randomness in zip(self.obj_rgbas, self._init_objs_pos, self._init_objs_pos_randomness):
+            for rgba, pos, pos_randomness in zip(obj_rgbas, self._init_objs_pos, self._init_objs_pos_randomness):
                 low, high = np.array(pos_randomness['low']), np.array(pos_randomness['high'])
                 random_position = pos + np.random.uniform(low=low, high=high)
                 self._objs.append(self.spawn_object(object_position=random_position, rgba=rgba))
@@ -219,8 +229,13 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
                 self._objs = []
 
                 self.get_obj_pnp_goals()
-                # red, yellow green, teal
-                for rgba, pos in zip(self.obj_rgbas, [self.on_top_drawer_goal, self.in_drawer_goal, self.out_of_drawer_goal]):
+                possible_goals = [self.on_top_drawer_goal, self.in_drawer_goal, self.out_of_drawer_goal]
+                if self.use_single_obj_idx:
+                    goals = [(self.obj_rgbas[self.use_single_obj_idx], random.choice(possible_goals))]
+                else:
+                    # red, yellow green, teal
+                    goals = zip(self.obj_rgbas, possible_goals)
+                for rgba, pos in goals:
                     if random.uniform(0, 1) < .5:
                         pos = self.out_of_drawer_goal + np.array([0, 0, 0.5])
                         self.get_obj_pnp_goals()
@@ -551,10 +566,22 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
             self.update_obj_pnp_goal()
             self.update_drawer_goal()
             r = random.uniform(0, 1)
-            if r < 2/3:
-                task = 'move_obj_pnp'
+            if self.use_single_obj_idx:
+                self.get_obj_pnp_goals()
+                obj_in_drawer, _ = self.get_drawer_objs()
+                # Object in drawer and drawer closed
+                if not self.handle_more_open_than_closed() and obj_in_drawer is not None:
+                    task = 'move_drawer'
+                else:
+                    if r < 2/3:
+                        task = 'move_obj_pnp'
+                    else:
+                        task = 'move_drawer'
             else:
-                task = 'move_drawer'
+                if r < 2/3:
+                    task = 'move_obj_pnp'
+                else:
+                    task = 'move_drawer'
         
         self.update_goal_state()
         return task
@@ -653,7 +680,13 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         return np.array(get_drawer_handle_pos(self._top_drawer))
     
     def get_position_of_object_idx(self, idx):
-        pos, _ = get_object_position(self._objs[idx])
+        if self.use_single_obj_idx:
+            if idx == self.use_single_obj_idx:
+                pos = get_object_position(self._objs[0])
+            else:
+                pos = np.zeros((3,))
+        else:
+            pos, _ = get_object_position(self._objs[idx])
         return pos
 
     def drawer_done(self, curr_pos, goal_pos):
@@ -731,6 +764,10 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
                 if len(can_interact_objs) != 0:
                     self.obj_pnp = random.choice(can_interact_objs)
                     self.obj_pnp_goal = goal
+            
+            if self.obj_pnp is None:
+                self.obj_pnp = self._objs[0]
+                self.obj_pnp_goal = self.in_drawer_goal
         else:
             target_location_to_goal = {
                 "top": self.on_top_drawer_goal,
@@ -876,10 +913,12 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         above = ee_pos[2] >= -0.125
 
         ee_yaw = self.get_end_effector_theta()[2]
-        if np.linalg.norm(self.goal_ee_yaw - ee_yaw) < np.linalg.norm(self.goal_ee_yaw - 180 + ee_yaw):
-            goal_ee_yaw = self.goal_ee_yaw
-        else:
-            goal_ee_yaw = self.goal_ee_yaw - 180
+        goal_ee_yaw_opts = [self.goal_ee_yaw, self.goal_ee_yaw - 180, self.goal_ee_yaw + 180, self.goal_ee_yaw - 360, self.goal_ee_yaw + 360]
+        goal_ee_yaw = min(goal_ee_yaw_opts, key=lambda x : np.linalg.norm(x - ee_yaw))
+        # if np.linalg.norm(self.goal_ee_yaw - ee_yaw) < np.linalg.norm(self.goal_ee_yaw - 180 + ee_yaw):
+        #     goal_ee_yaw = self.goal_ee_yaw
+        # else:
+        #     goal_ee_yaw = self.goal_ee_yaw - 180
         # if 0 <= self.goal_ee_yaw < 90:
         #     goal_ee_yaw = self.goal_ee_yaw - 90
         # elif 90 <= self.goal_ee_yaw < 270:
