@@ -10,8 +10,8 @@ num_traj = 100
 
 #obs_img_dim=196, 
 env = rv.make(
-    "SawyerRigAffordances-v2", 
-    gui=False, 
+    "SawyerRigAffordances-v3", 
+    gui=True, 
     expl=True, 
     reset_interval=1, 
     drawer_sliding=False, 
