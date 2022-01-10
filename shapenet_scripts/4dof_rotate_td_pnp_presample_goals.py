@@ -10,6 +10,7 @@ from PIL import Image
 import argparse
 
 from experiments.kuanfang.iql.drawer_pnp_commands import drawer_pnp_commands
+from experiments.kuanfang.iql.drawer_pnp_single_obj_commands import drawer_pnp_single_obj_commands
 
 ########################################
 # Args.
@@ -31,11 +32,11 @@ args = parser.parse_args()
 num_timesteps = args.num_timesteps
 num_trajectories = args.num_trajectories
 save_last_k_steps = args.save_last_k_steps
-ROOT_PATH = "/2tb/home/patrickhaoy/data/affordances/data/antialias_reset_free_rotated_semicircle_top_drawer_pnp_v2/"
+ROOT_PATH = "/2tb/home/patrickhaoy/data/affordances/data/antialias_reset_free_rotated_semicircle_top_drawer_pnp_v2_single_obj/"
 
 for test_env_seed in args.test_env_seeds:
     data_save_path = ROOT_PATH + "td_pnp_goals_seed{}.pkl".format(str(test_env_seed))
-    command = drawer_pnp_commands[test_env_seed]
+    command = drawer_pnp_single_obj_commands[test_env_seed]
 
     ########################################
     # Environment.
@@ -47,7 +48,7 @@ for test_env_seed in args.test_env_seeds:
     if args.downsample:
         kwargs['downsample'] = True
         kwargs['env_obs_img_dim'] = 196
-    env = roboverse.make('SawyerRigAffordances-v2', test_env=True, expl=True, **kwargs)
+    env = roboverse.make('SawyerRigAffordances-v2', test_env=True, expl=True, use_single_obj_idx=1, **kwargs)
 
     ########################################
     # Rollout in Environment and Collect Data.

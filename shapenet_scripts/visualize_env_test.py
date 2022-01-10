@@ -3,6 +3,7 @@ import numpy as np
 import skvideo.io
 
 from experiments.kuanfang.iql.drawer_pnp_commands import drawer_pnp_commands
+from experiments.kuanfang.iql.drawer_pnp_single_obj_commands import drawer_pnp_single_obj_commands
 
 #obs_img_dim=196, 
 env = rv.make(
@@ -13,8 +14,8 @@ env = rv.make(
     drawer_sliding=False, 
     env_obs_img_dim=196, 
     random_color_p=0.0, 
-    # test_env=True, 
-    # test_env_command=drawer_pnp_commands[1],
+    test_env=True, 
+    test_env_command=drawer_pnp_single_obj_commands[1],
     use_single_obj_idx=1,
     # fixed_drawer_yaw=24.18556394023222,
     # fixed_drawer_position=np.array([0.50850424, 0.11416014, -0.34]),

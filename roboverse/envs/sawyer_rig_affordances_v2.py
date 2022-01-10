@@ -682,7 +682,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
     def get_position_of_object_idx(self, idx):
         if self.use_single_obj_idx:
             if idx == self.use_single_obj_idx:
-                pos = get_object_position(self._objs[0])
+                pos, _ = get_object_position(self._objs[0])
             else:
                 pos = np.zeros((3,))
         else:
