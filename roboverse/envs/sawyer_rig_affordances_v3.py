@@ -32,7 +32,7 @@ quadrants = [
     [.8, .17],
 ]
 
-slide_offset = .07
+slide_offset = .075
 slide_quadrants = [
     [.5 + slide_offset, .17 - slide_offset],
     [.5 + slide_offset, slide_offset - .17],
@@ -194,9 +194,12 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         # self._debug1 = bullet.objects.button(pos=[gripper_bounding_x[0], gripper_bounding_y[0], -.35])
         # self._debug2 = bullet.objects.button(pos=[gripper_bounding_x[1], gripper_bounding_y[1], -.35])
 
+        self.top_drawer_quadrant = random.choice([0, 1])
+        self.large_object_quadrant = random.choice(list(set([0, 1, 2, 3]) - set([self.top_drawer_quadrant])))
+        is_close_drawer = np.random.uniform() < .5
+
         ## Large Object
-        ## HARDCODE
-        quadrant = slide_quadrants[3]
+        quadrant = slide_quadrants[self.large_object_quadrant]
         pos = np.array([quadrant[0], quadrant[1], -0.3525])
         self._large_obj = bullet.objects.drawer_lego(pos=pos, quat=self.sample_quat(), rgba=self.obj_rgbas[0], scale=2.5)
 
@@ -210,8 +213,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
                 drawer_frame_pos = self.fixed_drawer_pos
             else:
                 tries = 0
-                ## HARDCODE
-                quadrant = quadrants[1]
+                quadrant = quadrants[self.top_drawer_quadrant]
                 while(True):
                     drawer_frame_pos = np.array([quadrant[0], quadrant[1], -.34])
                     drawer_handle_open_goal_pos = drawer_frame_pos + td_open_coeff * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])
@@ -295,9 +297,8 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
             if not self.test_env_command['drawer_open']: 
                 close_drawer(self._top_drawer, 200)
         else:
-            ## HARDCODE
-            #if np.random.uniform() < .5:
-            close_drawer(self._top_drawer, 200)
+            if is_close_drawer:
+                close_drawer(self._top_drawer, 200)
 
         self._workspace = bullet.Sensor(self._sawyer,
             xyz_min=self._pos_low, xyz_max=self._pos_high,
@@ -770,8 +771,9 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
 
     def update_obj_slide_goal(self, task_info=None):
         ## HARDCODE
-        curr_quadrant = slide_quadrants[3]
-        goal_quadrant = slide_quadrants[0]
+        opts = [(self.large_object_quadrant - 1) % 4, (self.large_object_quadrant + 1) % 4]
+        opts = [opt for opt in opts if self.top_drawer_quadrant != opt]
+        goal_quadrant = slide_quadrants[random.choice(opts)]
         self.obj_slide = self._large_obj
         self.obj_slide_goal = np.array([goal_quadrant[0], goal_quadrant[1], -0.3525])
 
