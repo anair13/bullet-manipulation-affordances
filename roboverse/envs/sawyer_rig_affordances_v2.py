@@ -288,13 +288,13 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         assert object_position is not None
 
         # Generate quaterion if none is given
-        if quat is None:
-            quat = self.sample_quat()
+        # if quat is None:
+        #     quat = self.sample_quat()
 
         if self.large_obj:
             obj = bullet.objects.drawer_lego(pos=object_position, quat=deg_to_quat([0, 90, random.uniform(0, 360)]), rgba=rgba, scale=2.0)
         else:
-            obj = bullet.objects.drawer_lego(pos=object_position, quat=quat, rgba=rgba, scale=1.4)
+            obj = bullet.objects.drawer_lego(pos=object_position, quat=deg_to_quat([0, 90, random.uniform(0, 360)]), rgba=rgba, scale=1.4)
 
         # Allow the objects to land softly in low gravity
         p.setGravity(0, 0, -1)
@@ -711,7 +711,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
     def get_obj_pnp_goals(self):
         self.on_top_drawer_goal = np.array(list(get_drawer_frame_pos(self._top_drawer)))
         self.on_top_drawer_goal[2] += .1
-        self.in_drawer_goal = np.array(list(get_drawer_bottom_pos(self._top_drawer)))
+        self.in_drawer_goal = np.array(list(get_drawer_bottom_pos(self._top_drawer) + 0.02 * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])))
 
         self.out_of_drawer_goal = None
         while self.out_of_drawer_goal is None:
@@ -759,6 +759,9 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
                     obj_to_be_on_drawer.discard(obj_in_drawer)
             else:
                 obj_to_be_in_drawer = set(self._objs)
+
+            if not self.handle_more_open_than_closed():
+                obj_to_be_in_drawer = set()
             
             possible_goals = [
                 (self.in_drawer_goal, list(obj_to_be_in_drawer)),
@@ -915,7 +918,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         target_pos = self.get_object_pos(self.obj_pnp)
         aligned = np.linalg.norm(target_pos[:2] - ee_pos[:2]) < 0.025
         enclosed = np.linalg.norm(target_pos[2] - ee_pos[2]) < 0.025
-        done_xy = np.linalg.norm(target_pos[:2] - self.obj_pnp_goal[:2]) < 0.05
+        done_xy = np.linalg.norm(target_pos[:2] - self.obj_pnp_goal[:2]) < 0.03
         done = done_xy and np.linalg.norm(target_pos[2] - self.obj_pnp_goal[2]) < 0.03
         above = ee_pos[2] >= -0.125
 
@@ -969,7 +972,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
             action *= 3.0
             action[2] *= 2.0
             self.grip += 0.5
-        elif not above:
+        elif not done_xy and not above:
             if print_stages: print('Stage 6')
             action = np.array([0.,0., 1., 0.])
             self.grip = 1.
@@ -980,8 +983,14 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
             action[2] = 0
             action *= 3.0
             self.grip = 1.
-        else:
+        elif not done:
             if print_stages: print('Stage 8')
+            diff = self.obj_pnp_goal - ee_pos
+            action = np.array([diff[0], diff[1], -1, 0.])
+            self.grip = 1
+            #print(np.linalg.norm(target_pos[2] - self.obj_pnp_goal[2]))
+        else:
+            if print_stages: print('Stage 9')
             action = np.array([0.,0.,0., 0.])
             self.grip = -1
         

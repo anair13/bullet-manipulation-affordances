@@ -8,7 +8,7 @@ from experiments.kuanfang.iql.drawer_pnp_single_obj_commands import drawer_pnp_s
 #obs_img_dim=196, 
 env = rv.make(
     "SawyerRigAffordances-v2", 
-    gui=False, 
+    gui=True, 
     expl=True, 
     reset_interval=5, 
     drawer_sliding=False, 
@@ -17,7 +17,7 @@ env = rv.make(
     # test_env=True, 
     # test_env_command=drawer_pnp_single_obj_commands[1],
     use_single_obj_idx=1,
-    large_obj=True,
+    large_obj=False,
     # use_trash=True,
     # fixed_drawer_yaw=24.18556394023222,
     # fixed_drawer_position=np.array([0.50850424, 0.11416014, -0.34]),
@@ -26,7 +26,7 @@ env = rv.make(
 ts = 100
 num_traj = 100
 
-save_video = True
+save_video = False
 
 if save_video:
     video_save_path = '/2tb/home/patrickhaoy/data/test/'
