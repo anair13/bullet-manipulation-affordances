@@ -147,9 +147,6 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         self.obj_pnp = None
         self.obj_push = None
 
-        ##HARDCODE
-        self.i = 0 
-
         # Anti-aliasing
         self.downsample = kwargs.pop('downsample', False)
         self.env_obs_img_dim = kwargs.pop('env_obs_img_dim', self.obs_img_dim)
@@ -201,7 +198,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         ## Large Object
         quadrant = slide_quadrants[self.large_object_quadrant]
         pos = np.array([quadrant[0], quadrant[1], -0.3525])
-        self._large_obj = bullet.objects.drawer_lego(pos=pos, quat=self.sample_quat(), rgba=self.obj_rgbas[0], scale=2.5)
+        self._large_obj = bullet.objects.drawer_lego(pos=pos, quat=self.sample_quat(), rgba=self.obj_rgbas[0], scale=3.0)
 
         ## Top Drawer
         if self.test_env:
@@ -309,15 +306,15 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
     def sample_quat(self):
         return deg_to_quat(np.array([random.randint(0, 360), random.randint(0, 360), random.randint(0, 360)]))
 
-    def spawn_object(self, object_position=None, quat=None, rgba=[0, 1, 0, 1], scale=1.4):
+    def spawn_object(self, object_position=None, quat=None, rgba=[0, 1, 0, 1], scale=2.0):
         # Pick object if necessary and save information
         assert object_position is not None
 
         # Generate quaterion if none is given
-        if quat is None:
-            quat = self.sample_quat()
+        # if quat is None:
+        #     quat = self.sample_quat()
 
-        obj = bullet.objects.drawer_lego(pos=object_position, quat=quat, rgba=rgba, scale=scale)
+        obj = bullet.objects.drawer_lego(pos=object_position, quat=deg_to_quat([0, 90, random.uniform(0, 360)]), rgba=rgba, scale=scale)
 
         # Allow the objects to land softly in low gravity
         p.setGravity(0, 0, -1)
@@ -596,30 +593,25 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
             self.update_obj_pnp_goal()
             self.update_drawer_goal()
             self.update_obj_slide_goal()
-            # r = random.uniform(0, 1)
-            # if self.use_single_obj_idx:
-            #     self.get_obj_pnp_goals()
-            #     obj_in_drawer, _ = self.get_drawer_objs()
-            #     # Object in drawer and drawer closed
-            #     if not self.handle_more_open_than_closed() and obj_in_drawer is not None:
-            #         task = 'move_drawer'
-            #     else:
-            #         if r < 2/3:
-            #             task = 'move_obj_pnp'
-            #         else:
-            #             task = 'move_drawer'
-            # else:
-            #     if r < 2/3:
-            #         task = 'move_obj_pnp'
-            #     else:
-            #         task = 'move_drawer'
-            if self.i == 0:
-                task = 'move_obj_slide'
-            elif self.i == 1:
-                task = 'move_drawer'
+            if self.use_single_obj_idx:
+                self.get_obj_pnp_goals()
+                obj_in_drawer, _ = self.get_drawer_objs()
+                opts = ['move_obj_slide', 'move_obj_pnp', 'move_drawer']
+                # Object in drawer and drawer closed
+                if not self.handle_more_open_than_closed() and obj_in_drawer is not None:
+                    opts.remove('move_obj_pnp')
+                # Drawer is open and blocks goal
+                if np.linalg.norm(self.obj_slide_goal[:2] - self.get_td_handle_pos()[:2]) < self.obj_thresh:
+                    opts.remove('move_obj_slide')
+                task = random.choice(opts)
             else:
-                task = 'move_obj_pnp'
-            self.i += 1
+                r = random.uniform(0, 1)
+                if r < 1/3:
+                    task = 'move_obj_slide'
+                elif r < 2/3:
+                    task = 'move_obj_pnp'
+                else:
+                    task = 'move_drawer'
         
         self.update_goal_state()
         return task
@@ -770,7 +762,6 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         return obj_in_drawer, obj_on_drawer
 
     def update_obj_slide_goal(self, task_info=None):
-        ## HARDCODE
         opts = [(self.large_object_quadrant - 1) % 4, (self.large_object_quadrant + 1) % 4]
         opts = [opt for opt in opts if self.top_drawer_quadrant != opt]
         goal_quadrant = slide_quadrants[random.choice(opts)]

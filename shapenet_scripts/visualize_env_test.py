@@ -11,7 +11,7 @@ num_traj = 100
 #obs_img_dim=196, 
 env = rv.make(
     "SawyerRigAffordances-v3", 
-    gui=False, 
+    gui=True, 
     expl=True, 
     reset_interval=3, 
     drawer_sliding=False, 
@@ -30,7 +30,7 @@ env = rv.make(
     # downsample=True,
 )
 
-save_video = True
+save_video = False
 
 if save_video:
     video_save_path = '/2tb/home/patrickhaoy/data/test/'
