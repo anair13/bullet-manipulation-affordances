@@ -46,7 +46,7 @@ if args.downsample:
     kwargs['downsample'] = True
     kwargs['env_obs_img_dim'] = 196
 
-state_env = roboverse.make('SawyerRigAffordances-v2', random_color_p=0.0, expl=True, reset_interval=args.reset_interval, **kwargs)
+state_env = roboverse.make('SawyerRigAffordances-v3', random_color_p=0.0, expl=True, reset_interval=args.reset_interval, **kwargs)
 
 # FOR TESTING, TURN COLORS OFF
 imsize = state_env.obs_img_dim

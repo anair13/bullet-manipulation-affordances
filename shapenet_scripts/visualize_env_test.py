@@ -13,7 +13,7 @@ env = rv.make(
     "SawyerRigAffordances-v3", 
     gui=True, 
     expl=True, 
-    reset_interval=1, 
+    reset_interval=3, 
     drawer_sliding=False, 
     env_obs_img_dim=196, 
     random_color_p=0.0, 
@@ -26,9 +26,9 @@ env = rv.make(
     # use_trash=True,
     # fixed_drawer_yaw=24.18556394023222,
     # fixed_drawer_position=np.array([0.50850424, 0.11416014, -0.34]),
-    expert_policy_std=0.15,
-    downsample=True,
-)#, downsample=True)  
+    # expert_policy_std=0.05,
+    # downsample=True,
+)
 
 save_video = True
 
