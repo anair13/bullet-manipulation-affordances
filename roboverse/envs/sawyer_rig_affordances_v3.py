@@ -32,7 +32,7 @@ quadrants = [
     [.8, .17],
 ]
 
-slide_offset = .075
+slide_offset = .08
 slide_quadrants = [
     [.5 + slide_offset, .17 - slide_offset],
     [.5 + slide_offset, slide_offset - .17],
@@ -193,12 +193,8 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
 
         self.top_drawer_quadrant = random.choice([0, 1])
         self.large_object_quadrant = random.choice(list(set([0, 1, 2, 3]) - set([self.top_drawer_quadrant])))
-        is_close_drawer = np.random.uniform() < .5
-
-        ## Large Object
-        quadrant = slide_quadrants[self.large_object_quadrant]
-        pos = np.array([quadrant[0], quadrant[1], -0.3525])
-        self._large_obj = bullet.objects.drawer_lego(pos=pos, quat=self.sample_quat(), rgba=self.obj_rgbas[0], scale=3.0)
+        ## HARDCODE
+        is_close_drawer = True #np.random.uniform() < .5
 
         ## Top Drawer
         if self.test_env:
@@ -262,9 +258,11 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
                     # red, yellow green, teal
                     goals = zip(self.obj_rgbas, possible_goals)
                 for rgba, pos in goals:
-                    if random.uniform(0, 1) < .5:
-                        pos = self.out_of_drawer_goal + np.array([0, 0, 0.5])
-                        self.get_obj_pnp_goals()
+                    # if random.uniform(0, 1) < .5:
+                    #     pos = self.out_of_drawer_goal + np.array([0, 0, 0.5])
+                    #     self.get_obj_pnp_goals()
+                    ## HARCODE
+                    pos = self.on_top_drawer_goal
                     self._init_objs_pos.append(pos)
                     self._objs.append(self.spawn_object(object_position=pos, rgba=rgba))
                 
@@ -296,6 +294,17 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         else:
             if is_close_drawer:
                 close_drawer(self._top_drawer, 200)
+
+        ## Large Object
+        quadrant = slide_quadrants[self.large_object_quadrant]
+        pos = np.array([quadrant[0], quadrant[1], -0.3525])
+        self._large_obj = bullet.objects.drawer_lego(pos=pos, quat=deg_to_quat([0, 0, random.uniform(0, 360)]), rgba=self.obj_rgbas[0], scale=2.25)
+            # loader.load_shapenet_object(
+            # "03991062/eb8d2e7e18906c7f25ebd1cd0b422e32",
+            # {"03991062/eb8d2e7e18906c7f25ebd1cd0b422e32": 0.3},
+            # pos,
+            # quat=deg_to_quat([0, 0, random.uniform(0, 360)]),
+            # rgba=self.obj_rgbas[0])
 
         self._workspace = bullet.Sensor(self._sawyer,
             xyz_min=self._pos_low, xyz_max=self._pos_high,
@@ -613,6 +622,8 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
                 else:
                     task = 'move_drawer'
         
+        ## HARDCODE
+        task = 'move_obj_slide'
         self.update_goal_state()
         return task
 
@@ -762,6 +773,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         return obj_in_drawer, obj_on_drawer
 
     def update_obj_slide_goal(self, task_info=None):
+        self.large_object_quadrant = self.get_quadrant(self.get_object_pos(self._large_obj))
         opts = [(self.large_object_quadrant - 1) % 4, (self.large_object_quadrant + 1) % 4]
         opts = [opt for opt in opts if self.top_drawer_quadrant != opt]
         goal_quadrant = slide_quadrants[random.choice(opts)]
@@ -769,6 +781,19 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         self.obj_slide_goal = np.array([goal_quadrant[0], goal_quadrant[1], -0.3525])
 
         #self._debug1 = bullet.objects.button(pos=self.obj_slide_goal)
+    
+    def get_quadrant(self, pos):
+        if np.linalg.norm(.5 - pos[0]) < np.linalg.norm(.8 - pos[0]):
+            if np.linalg.norm(.17 - pos[1]) < np.linalg.norm(-.17 - pos[1]):
+                return 0
+            else:
+                return 1
+        else:
+            if np.linalg.norm(.17 - pos[1]) < np.linalg.norm(-.17 - pos[1]):
+                return 3
+            else:
+                return 2
+
 
     def update_obj_pnp_goal(self, task_info=None):
         self.get_obj_pnp_goals()
@@ -1022,7 +1047,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
 
         return action, done
 
-    def move_obj_slide(self, print_stages=False):
+    def move_obj_slide(self, print_stages=True):
         ee_pos = self.get_end_effector_pos()
         ee_yaw = self.get_end_effector_theta()[2]
         obj_pos = self.get_object_pos(self.obj_slide)
@@ -1039,10 +1064,10 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         #     goal_ee_yaw = direction - 180
         # else:
         #     goal_ee_yaw = direction - 360
-        ee_early_stage_goal_pos = obj_pos - 0.1 * np.array([np.sin(direction * np.pi / 180) , -np.cos(direction * np.pi / 180), 0])
+        ee_early_stage_goal_pos = obj_pos - 0.2 * np.array([np.sin(direction * np.pi / 180) , -np.cos(direction * np.pi / 180), 0])
 
         gripper_yaw_aligned = np.linalg.norm(goal_ee_yaw - ee_yaw) > 5
-        gripper_pos_xy_aligned = np.linalg.norm(ee_early_stage_goal_pos[:2] - ee_pos[:2]) < .035
+        gripper_pos_xy_aligned = np.linalg.norm(ee_early_stage_goal_pos[:2] - ee_pos[:2]) < .15
         gripper_pos_z_aligned = np.linalg.norm(ee_early_stage_goal_pos[2] - ee_pos[2]) < .0375
         gripper_above = ee_pos[2] >= -0.105
         if not self.gripper_has_been_above and gripper_above:
@@ -1067,6 +1092,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
             if print_stages: print('Stage 3')
             xy_action = (ee_early_stage_goal_pos - ee_pos) * 6
             action = np.array([xy_action[0], xy_action[1], 0, 0])
+            print(action, np.linalg.norm(ee_early_stage_goal_pos[:2] - ee_pos[:2]))
         # Stage 4: lower gripper around handle
         elif gripper_pos_xy_aligned and not gripper_pos_z_aligned:
             if print_stages: print('Stage 4')

@@ -13,7 +13,7 @@ env = rv.make(
     "SawyerRigAffordances-v3", 
     gui=True, 
     expl=True, 
-    reset_interval=3, 
+    reset_interval=5, 
     drawer_sliding=False, 
     env_obs_img_dim=196, 
     random_color_p=0.0, 
