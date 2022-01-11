@@ -32,7 +32,7 @@ args = parser.parse_args()
 num_timesteps = args.num_timesteps
 num_trajectories = args.num_trajectories
 save_last_k_steps = args.save_last_k_steps
-ROOT_PATH = "/2tb/home/patrickhaoy/data/affordances/data/antialias_reset_free_rotated_semicircle_top_drawer_pnp_v2_single_obj/"
+ROOT_PATH = "/2tb/home/patrickhaoy/data/affordances/data/antialias_reset_free_rotated_semicircle_top_drawer_pnp_v2_single_obj_large/"
 
 for test_env_seed in args.test_env_seeds:
     data_save_path = ROOT_PATH + "td_pnp_goals_seed{}.pkl".format(str(test_env_seed))
@@ -44,6 +44,7 @@ for test_env_seed in args.test_env_seeds:
     kwargs = {
         'drawer_sliding': True if args.drawer_sliding else False,
         'test_env_command': command,
+        'large_obj': True,
     }
     if args.downsample:
         kwargs['downsample'] = True

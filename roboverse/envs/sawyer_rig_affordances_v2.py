@@ -129,8 +129,11 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         # Objects
         self.obj_rgbas = [[0.93, .294, .169, 1], [.5, 1., 0., 1], [0., .502, .502, 1]] # red, yellow green, teal
         self.use_single_obj_idx = kwargs.pop('use_single_obj_idx', None)
-        self.use_trash = kwargs.pop('use_trash', False)
         self.obj_pnp = None
+        self.large_obj = kwargs.pop('large_obj', False)
+        if self.large_obj:
+            gripper_bounding_x = [.525, .775] #[.46, .84] #[0.4704, 0.8581]
+            gripper_bounding_y = [-.145, .145] #[-0.1989, 0.2071]
 
         # Anti-aliasing
         self.downsample = kwargs.pop('downsample', False)
@@ -288,15 +291,10 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         if quat is None:
             quat = self.sample_quat()
 
-        if self.use_trash:
-            obj = loader.load_shapenet_object(
-                '02747177/8fff3a4ba8db098bd2b12aa6a0f050b3',
-                {'02747177/8fff3a4ba8db098bd2b12aa6a0f050b3' : .25},
-                object_position,
-                quat=[0, 0, 1, 1],
-                rgba=None)
+        if self.large_obj:
+            obj = bullet.objects.drawer_lego(pos=object_position, quat=deg_to_quat([0, 90, random.uniform(0, 360)]), rgba=rgba, scale=2.0)
         else:
-            obj = bullet.objects.drawer_lego(pos=object_position, quat=quat, rgba=rgba, scale=2.1)
+            obj = bullet.objects.drawer_lego(pos=object_position, quat=quat, rgba=rgba, scale=1.4)
 
         # Allow the objects to land softly in low gravity
         p.setGravity(0, 0, -1)
@@ -922,6 +920,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         above = ee_pos[2] >= -0.125
 
         ee_yaw = self.get_end_effector_theta()[2]
+        self.goal_ee_yaw = self.goal_ee_yaw % 180
         goal_ee_yaw_opts = [self.goal_ee_yaw, self.goal_ee_yaw - 180, self.goal_ee_yaw + 180, self.goal_ee_yaw - 360, self.goal_ee_yaw + 360]
         goal_ee_yaw = min(goal_ee_yaw_opts, key=lambda x : np.linalg.norm(x - ee_yaw))
         # if np.linalg.norm(self.goal_ee_yaw - ee_yaw) < np.linalg.norm(self.goal_ee_yaw - 180 + ee_yaw):
