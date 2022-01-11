@@ -4,11 +4,12 @@ import skvideo.io
 
 from experiments.kuanfang.iql.drawer_pnp_commands import drawer_pnp_commands
 from experiments.kuanfang.iql.drawer_pnp_single_obj_commands import drawer_pnp_single_obj_commands
+from experiments.kuanfang.iql.drawer_pnp_single_obj_trash_commands import drawer_pnp_single_obj_trash_commands
 
 #obs_img_dim=196, 
 env = rv.make(
     "SawyerRigAffordances-v2", 
-    gui=True, 
+    gui=False, 
     expl=True, 
     reset_interval=5, 
     drawer_sliding=False, 
@@ -17,6 +18,7 @@ env = rv.make(
     test_env=True, 
     test_env_command=drawer_pnp_single_obj_commands[1],
     use_single_obj_idx=1,
+    # use_trash=True,
     # fixed_drawer_yaw=24.18556394023222,
     # fixed_drawer_position=np.array([0.50850424, 0.11416014, -0.34]),
     # expert_policy_std=0.05,
@@ -24,7 +26,7 @@ env = rv.make(
 ts = 100
 num_traj = 100
 
-save_video = False
+save_video = True
 
 if save_video:
     video_save_path = '/2tb/home/patrickhaoy/data/test/'

@@ -129,6 +129,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         # Objects
         self.obj_rgbas = [[0.93, .294, .169, 1], [.5, 1., 0., 1], [0., .502, .502, 1]] # red, yellow green, teal
         self.use_single_obj_idx = kwargs.pop('use_single_obj_idx', None)
+        self.use_trash = kwargs.pop('use_trash', False)
         self.obj_pnp = None
 
         # Anti-aliasing
@@ -287,7 +288,15 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         if quat is None:
             quat = self.sample_quat()
 
-        obj = bullet.objects.drawer_lego(pos=object_position, quat=quat, rgba=rgba, scale=1.4)
+        if self.use_trash:
+            obj = loader.load_shapenet_object(
+                '02747177/8fff3a4ba8db098bd2b12aa6a0f050b3',
+                {'02747177/8fff3a4ba8db098bd2b12aa6a0f050b3' : .25},
+                object_position,
+                quat=[0, 0, 1, 1],
+                rgba=None)
+        else:
+            obj = bullet.objects.drawer_lego(pos=object_position, quat=quat, rgba=rgba, scale=2.1)
 
         # Allow the objects to land softly in low gravity
         p.setGravity(0, 0, -1)
