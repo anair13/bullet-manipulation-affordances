@@ -40,7 +40,7 @@ def get_drawer_frame_pos(drawer, physicsClientId=0):
                   for j in range(bullet.p.getNumJoints(drawer, physicsClientId=physicsClientId))]
     frame_link_idx = link_names.index('frame')
     frame_pos = bullet.get_link_state(
-        drawer, frame_link_idx)
+        drawer, frame_link_idx, physicsClientId=physicsClientId)
     return frame_pos['pos']
 
 def get_drawer_opened_percentage(
