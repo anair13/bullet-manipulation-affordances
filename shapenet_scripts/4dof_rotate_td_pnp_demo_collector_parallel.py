@@ -49,6 +49,8 @@ def collect(id):
             'actions': np.zeros((args.num_timesteps, act_dim), dtype=np.float),
             'rewards': np.zeros((args.num_timesteps), dtype=np.float),
             'terminals': np.zeros((args.num_timesteps), dtype=np.uint8),
+            'agent_infos': np.zeros((args.num_timesteps), dtype=np.uint8),
+            'env_infos': np.zeros((args.num_timesteps), dtype=np.uint8),
             'skill_id': 0,
         }
         for i in range(args.num_timesteps):
