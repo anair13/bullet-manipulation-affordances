@@ -108,6 +108,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
 
         # Tasks
         self.curr_task = 'drawer'
+        self.move_gripper_task = kwargs.pop('move_gripper_task', False)
 
         # Reset-free
         if self.test_env:
@@ -175,9 +176,9 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         self._objects = {}
         self._sensors = {}
 
-        self._sawyer = bullet.objects.drawer_sawyer()
-        self._table = bullet.objects.table(rgba=[.92,.85,.7,1])
-        self._wall = bullet.objects.wall_narrow(scale=1.0)
+        self._sawyer = bullet.objects.drawer_sawyer(physicsClientId=self._uid)
+        self._table = bullet.objects.table(rgba=[.92,.85,.7,1], physicsClientId=self._uid)
+        self._wall = bullet.objects.wall_narrow(scale=1.0, physicsClientId=self._uid)
 
         # self._debug1 = bullet.objects.button(pos=[gripper_bounding_x[0], gripper_bounding_y[0], -.35])
         # self._debug2 = bullet.objects.button(pos=[gripper_bounding_x[1], gripper_bounding_y[1], -.35])
@@ -202,16 +203,16 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
                     if (tries > 25):
                         self.drawer_yaw = random.uniform(0, 180)
 
-        quat = deg_to_quat([0, 0, self.drawer_yaw])
+        quat = deg_to_quat([0, 0, self.drawer_yaw], physicsClientId=self._uid)
         
         if self.drawer_sliding:
-            self._top_drawer = bullet.objects.drawer_sliding_lightblue_base(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color())
+            self._top_drawer = bullet.objects.drawer_sliding_lightblue_base(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color(), physicsClientId=self._uid)
         else:
-            self._top_drawer = bullet.objects.drawer_lightblue_base(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color())
+            self._top_drawer = bullet.objects.drawer_lightblue_base(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color(), physicsClientId=self._uid)
         
-        open_drawer(self._top_drawer, 100)
+        open_drawer(self._top_drawer, 100, physicsClientId=self._uid)
 
-        self.init_handle_pos = get_drawer_handle_pos(self._top_drawer)[1]
+        self.init_handle_pos = get_drawer_handle_pos(self._top_drawer, physicsClientId=self._uid)[1]
 
         ## Objects
         self._objs = []
@@ -232,7 +233,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
             tries = 0
             while(not objects_within_gripper_range):
                 for obj in self._objs:
-                    p.removeBody(obj)
+                    p.removeBody(obj, physicsClientId=self._uid)
                 self._objs = []
 
                 self.get_obj_pnp_goals()
@@ -251,7 +252,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
                 
                 objects_within_gripper_range = True
                 for obj in self._objs:
-                    pos, _ = get_object_position(obj)
+                    pos, _ = get_object_position(obj, physicsClientId=self._uid)
                     if not (gripper_bounding_x[0] - .04 <= pos[0] and pos[0] <= gripper_bounding_x[1] + .04 \
                         and gripper_bounding_y[0] - .04 <= pos[1] and pos[1] <= gripper_bounding_y[1] + .04):
                         objects_within_gripper_range = False
@@ -268,23 +269,23 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
 
         # Tray acts as stopper for drawer closing
         tray_pos = self.get_drawer_handle_future_pos(-.01)
-        self._tray = bullet.objects.tray(quat=quat, pos=tray_pos, scale=0.0001)
+        self._tray = bullet.objects.tray(quat=quat, pos=tray_pos, scale=0.0001, physicsClientId=self._uid)
 
         if self.test_env:
             if not self.test_env_command['drawer_open']: 
-                close_drawer(self._top_drawer, 200)
+                close_drawer(self._top_drawer, 200, physicsClientId=self._uid)
         else:
             if np.random.uniform() < .5:
-                close_drawer(self._top_drawer, 200)
+                close_drawer(self._top_drawer, 200, physicsClientId=self._uid)
 
         self._workspace = bullet.Sensor(self._sawyer,
             xyz_min=self._pos_low, xyz_max=self._pos_high,
-            visualize=False, rgba=[0,1,0,.1])
+            visualize=False, rgba=[0,1,0,.1], physicsClientId=self._uid)
         self._end_effector = bullet.get_index_by_attribute(
-            self._sawyer, 'link_name', 'gripper_site')
+            self._sawyer, 'link_name', 'gripper_site', physicsClientId=self._uid)
     
     def sample_quat(self):
-        return deg_to_quat(np.array([random.randint(0, 360), random.randint(0, 360), random.randint(0, 360)]))
+        return deg_to_quat(np.array([random.randint(0, 360), random.randint(0, 360), random.randint(0, 360)]), physicsClientId=self._uid)
 
     def spawn_object(self, object_position=None, quat=None, rgba=[0, 1, 0, 1]):
         # Pick object if necessary and save information
@@ -295,18 +296,18 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         #     quat = self.sample_quat()
 
         if self.large_obj:
-            obj = bullet.objects.drawer_lego(pos=object_position, quat=deg_to_quat([0, 90, random.uniform(0, 360)]), rgba=rgba, scale=2.0)
+            obj = bullet.objects.drawer_lego(pos=object_position, quat=deg_to_quat([0, 90, random.uniform(0, 360)]), rgba=rgba, scale=2.0, physicsClientId=self._uid)
         else:
-            obj = bullet.objects.drawer_lego(pos=object_position, quat=deg_to_quat([0, 90, random.uniform(0, 360)]), rgba=rgba, scale=1.4)
+            obj = bullet.objects.drawer_lego(pos=object_position, quat=deg_to_quat([0, 90, random.uniform(0, 360)]), rgba=rgba, scale=1.4, physicsClientId=self._uid)
 
         # Allow the objects to land softly in low gravity
-        p.setGravity(0, 0, -1)
+        p.setGravity(0, 0, -1, physicsClientId=self._uid)
         for _ in range(100):
-            bullet.step()
+            bullet.step(physicsClientId=self._uid)
         # After landing, bring to stop
-        p.setGravity(0, 0, -10)
+        p.setGravity(0, 0, -10, physicsClientId=self._uid)
         for _ in range(100):
-            bullet.step()
+            bullet.step(physicsClientId=self._uid)
         
         return obj
 
@@ -323,9 +324,9 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
 
     def step(self, *action):
         # Get positional information
-        pos = bullet.get_link_state(self._sawyer, self._end_effector, 'pos')
-        curr_angle = bullet.get_link_state(self._sawyer, self._end_effector, 'theta')
-        default_angle = quat_to_deg(self.default_theta)
+        pos = bullet.get_link_state(self._sawyer, self._end_effector, 'pos', physicsClientId=self._uid)
+        curr_angle = bullet.get_link_state(self._sawyer, self._end_effector, 'theta', physicsClientId=self._uid)
+        default_angle = quat_to_deg(self.default_theta, physicsClientId=self._uid)
 
         # Keep necesary degrees of theta fixed
         angle = np.append(default_angle[:2], [curr_angle[2]])
@@ -337,7 +338,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         # Update position and theta
         pos += delta_pos * self._action_scale
         pos = np.clip(pos, self._pos_low, self._pos_high)
-        theta = deg_to_quat(angle)
+        theta = deg_to_quat(angle, physicsClientId=self._uid)
         self._simulate(pos, theta, gripper)
 
         # Get tuple information
@@ -552,7 +553,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
     def render_obs(self):
         img, depth, segmentation = bullet.render(
             self.env_obs_img_dim, self.env_obs_img_dim, self._view_matrix_obs,
-            self._projection_matrix_obs, shadow=0, gaussian_width=0)
+            self._projection_matrix_obs, shadow=0, gaussian_width=0, physicsClientId=self._uid)
         
         if self.downsample:
             im = Image.fromarray(np.uint8(img), 'RGB').resize(self.image_shape, resample=Image.ANTIALIAS)
@@ -577,7 +578,12 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         return reward
 
     def sample_goals(self):
-        if self.test_env:
+        if self.move_gripper_task:
+            task = 'move_gripper'
+            self.update_gripper_goal()
+            self.update_obj_pnp_goal()
+            self.update_drawer_goal()
+        elif self.test_env:
             task, task_info = self.test_env_command['command_sequence'][self.reset_counter]
             if task == 'move_drawer':
                 self.update_drawer_goal(task_info)
@@ -623,8 +629,8 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
             self.trajectory_done = False
 
         # Load Environment
-        bullet.reset()
-        bullet.setup_headless(self._timestep, solver_iterations=self._solver_iterations)
+        bullet.reset(physicsClientId=self._uid)
+        bullet.setup_headless(self._timestep, solver_iterations=self._solver_iterations, physicsClientId=self._uid)
         self._load_table()
         self._format_state_query()
 
@@ -632,7 +638,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         init_pos = np.array(self._pos_init)
         self.curr_task = self.sample_goals()
 
-        bullet.position_control(self._sawyer, self._end_effector, init_pos, self.default_theta)
+        bullet.position_control(self._sawyer, self._end_effector, init_pos, self.default_theta, physicsClientId=self._uid)
 
         # Move to starting positions
         action = np.array([0 for i in range(self.DoF)] + [-1])
@@ -648,13 +654,13 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
 
     def get_observation(self):
         left_tip_pos = bullet.get_link_state(
-            self._sawyer, 'right_gripper_l_finger_joint', keys='pos')
+            self._sawyer, 'right_gripper_l_finger_joint', keys='pos', physicsClientId=self._uid)
         right_tip_pos = bullet.get_link_state(
-            self._sawyer, 'right_gripper_r_finger_joint', keys='pos')
+            self._sawyer, 'right_gripper_r_finger_joint', keys='pos', physicsClientId=self._uid)
         left_tip_pos = np.asarray(left_tip_pos)
         right_tip_pos = np.asarray(right_tip_pos)
         hand_theta = bullet.get_link_state(self._sawyer, self._end_effector,
-            'theta', quat_to_deg=False)
+            'theta', quat_to_deg=False, physicsClientId=self._uid)
 
         gripper_tips_distance = [np.linalg.norm(
             left_tip_pos - right_tip_pos)]
@@ -692,7 +698,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         return None
 
     def get_drawer_handle_future_pos(self, coeff):
-        drawer_frame_pos = get_drawer_frame_pos(self._top_drawer)
+        drawer_frame_pos = get_drawer_frame_pos(self._top_drawer, physicsClientId=self._uid)
         return drawer_frame_pos + coeff * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])
 
     def handle_more_open_than_closed(self):
@@ -702,16 +708,16 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         return np.linalg.norm(drawer_handle_open_pos - drawer_handle_pos) < np.linalg.norm(drawer_handle_close_pos - drawer_handle_pos)
 
     def get_td_handle_pos(self):
-        return np.array(get_drawer_handle_pos(self._top_drawer))
+        return np.array(get_drawer_handle_pos(self._top_drawer, physicsClientId=self._uid))
     
     def get_position_of_object_idx(self, idx):
         if self.use_single_obj_idx:
             if idx == self.use_single_obj_idx:
-                pos, _ = get_object_position(self._objs[0])
+                pos, _ = get_object_position(self._objs[0], physicsClientId=self._uid)
             else:
                 pos = np.zeros((3,))
         else:
-            pos, _ = get_object_position(self._objs[idx])
+            pos, _ = get_object_position(self._objs[idx], physicsClientId=self._uid)
         return pos
 
     def drawer_done(self, curr_pos, goal_pos):
@@ -727,10 +733,10 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
             return np.linalg.norm(curr_pos - goal_pos) < self.obj_thresh
 
     def get_obj_pnp_goals(self):
-        self.on_top_drawer_goal = np.array(list(get_drawer_frame_pos(self._top_drawer)))
+        self.on_top_drawer_goal = np.array(list(get_drawer_frame_pos(self._top_drawer, physicsClientId=self._uid)))
         self.on_top_drawer_goal[2] += .1
         self.on_top_drawer_goal += 0.01 * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])
-        self.in_drawer_goal = np.array(list(get_drawer_bottom_pos(self._top_drawer) + 0.02 * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])))
+        self.in_drawer_goal = np.array(list(get_drawer_bottom_pos(self._top_drawer, physicsClientId=self._uid) + 0.02 * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])))
 
         self.out_of_drawer_goal = None
         while self.out_of_drawer_goal is None:
@@ -756,6 +762,23 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
                 obj_on_drawer = obj
         
         return obj_in_drawer, obj_on_drawer
+
+    def update_gripper_goal(self, init_pos=False):
+        if init_pos:
+            self.gripper_goal_pos = np.array(self._pos_init)
+            self.gripper_goal_yaw = 180
+            self.gripper_goal_grip = -1
+            self.gripper_task = 'to_init_pos'
+        else:
+            x_range = [0.4704, 0.8581]
+            y_range = [-0.1989, 0.2071]
+            z_range = [-0.4, -0.05]
+            self.gripper_goal_pos = np.array([random.uniform(*x_range), random.uniform(*y_range), random.uniform(*z_range)])
+            while np.linalg.norm(self.gripper_goal_pos - self._pos_init) < .1:
+                self.gripper_goal_pos = np.array([random.uniform(*x_range), random.uniform(*y_range), random.uniform(*z_range)])
+            self.gripper_goal_yaw = random.uniform(0, 360)
+            self.gripper_goal_grip = random.uniform(-1, 1)
+            self.gripper_task = 'to_random_pos'
 
     def update_obj_pnp_goal(self, task_info=None):
         self.get_obj_pnp_goals()
@@ -852,7 +875,8 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
 
         task_dict = {
             'move_drawer': lambda : self.move_drawer(),
-            'move_obj_pnp': lambda: self.move_obj_pnp(),
+            'move_obj_pnp': lambda : self.move_obj_pnp(),
+            'move_gripper': lambda : self.move_gripper(),
         }
         action, done = task_dict[self.curr_task]()
 
@@ -863,7 +887,10 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         if done or final_timestep:
             self.trajectory_done = True
 
-        offset = self.demo_num_ts - self.timestep
+        if self.demo_num_ts:
+            offset = self.demo_num_ts - self.timestep
+        else:
+            offset = 999
         if self.trajectory_done or offset < 5:
             action = np.array([0, 0, 1, 0, -1])
         elif self.curr_task == 'move_obj_pnp' and offset < 20 and offset > 5:
@@ -878,6 +905,34 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         if return_done:
             return action, done
         return action
+
+    def move_gripper(self, print_stages=False):
+        done = False
+        ee_pos = self.get_end_effector_pos()
+        ee_yaw = self.get_end_effector_theta()[2]
+        
+        if 0 <= self.goal_ee_yaw < 90:
+            goal_ee_yaw = self.gripper_goal_yaw
+        elif 90 <= self.goal_ee_yaw < 270:
+            goal_ee_yaw = self.gripper_goal_yaw - 180
+        else:
+            goal_ee_yaw = self.gripper_goal_yaw - 360
+
+        action = np.zeros((4,))
+        if goal_ee_yaw > ee_yaw:
+            action[3] = 1
+        else:
+            action[3] = -1
+
+        diff = (self.gripper_goal_pos - ee_pos) * 2
+        if self.gripper_task == 'to_random_pos':
+            diff *= 3
+        action[0] = diff[0]
+        action[1] = diff[1]
+        action[2] = diff[2]
+        self.grip = self.gripper_goal_grip
+    
+        return action, done
     
     def move_drawer(self, print_stages=False):
         self.grip = -1
@@ -885,7 +940,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         ee_yaw = self.get_end_effector_theta()[2]
 
         drawer_handle_pos = self.get_td_handle_pos()
-        drawer_frame_pos = get_drawer_frame_pos(self._top_drawer)
+        drawer_frame_pos = get_drawer_frame_pos(self._top_drawer, physicsClientId=self._uid)
         #print((drawer_handle_pos - drawer_frame_pos)/np.array([np.sin((self.drawer_yaw+180) * np.pi / 180) , -np.cos((self.drawer_yaw+180) * np.pi / 180), 0]))
         ee_early_stage_goal_pos = drawer_handle_pos - td_offset_coeff * np.array([np.sin((self.drawer_yaw+180) * np.pi / 180) , -np.cos((self.drawer_yaw+180) * np.pi / 180), 0])
 
@@ -944,7 +999,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         if self.final_timestep and print_stages: print("drawer_yaw: ", self.drawer_yaw, ", drawer_frame_pos: ", get_drawer_frame_pos(self._top_drawer))
         return action, done
 
-    def move_obj_pnp(self, print_stages=True):
+    def move_obj_pnp(self, print_stages=False):
         ee_pos = self.get_end_effector_pos()
         target_pos = self.get_object_pos(self.obj_pnp)
         aligned = np.linalg.norm(target_pos[:2] - ee_pos[:2]) < 0.035
@@ -1040,4 +1095,4 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         return action, done
 
     def get_object_pos(self, obj):
-        return np.array(bullet.get_body_info(obj, quat_to_deg=False)['pos'])
+        return np.array(bullet.get_body_info(obj, quat_to_deg=False, physicsClientId=self._uid)['pos'])

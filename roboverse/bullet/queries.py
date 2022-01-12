@@ -9,36 +9,36 @@ from roboverse.bullet.misc import quat_to_deg
 #### bullet queries ####
 ########################
 
-def get_joint_state(body, joint, keys=None, return_list=False, quat_to_deg=True):
-    lookup_fn = p.getJointState
+def get_joint_state(body, joint, keys=None, return_list=False, quat_to_deg=True, physicsClientId=0):
+    lookup_fn = lambda body, joint : p.getJointState(body, joint, physicsClientId=physicsClientId)
     labels = ['pos', 'vel', 'forces', 'torque']
-    return _lookup_by_joint(body, joint, lookup_fn, labels, keys, return_list, quat_to_deg)
+    return _lookup_by_joint(body, joint, lookup_fn, labels, keys, return_list, quat_to_deg, physicsClientId=physicsClientId)
 
 
-def get_joint_info(body, joint, keys=None, return_list=False, quat_to_deg=True):
-    lookup_fn = p.getJointInfo
+def get_joint_info(body, joint, keys=None, return_list=False, quat_to_deg=True, physicsClientId=0):
+    lookup_fn = lambda body, joint : p.getJointInfo(body, joint, physicsClientId=physicsClientId)
     labels = ['joint_index', 'joint_name', 'joint_type', 'q_index', 'u_index', 'flags',
               'damping', 'friction', 'low', 'high', 'max_force', 'max_velocity',
               'link_name', 'axis', 'parent_frame_pos', 'parent_frame_theta', 'parent_index']
-    return _lookup_by_joint(body, joint, lookup_fn, labels, keys, return_list, quat_to_deg)
+    return _lookup_by_joint(body, joint, lookup_fn, labels, keys, return_list, quat_to_deg, physicsClientId=physicsClientId)
 
 
-def get_link_state(body, link, keys=None, return_list=False, quat_to_deg=True):
-    lookup_fn = p.getLinkState
+def get_link_state(body, link, keys=None, return_list=False, quat_to_deg=True, physicsClientId=0):
+    lookup_fn = lambda body, joint : p.getLinkState(body, joint, physicsClientId=physicsClientId)
     labels = ['pos', 'theta', 'local_inertial_pos', 'local_inertial_theta',
               'world_link_pos', 'world_link_theta', 'world_link_linear_vel', 'world_link_angular_vel']
-    return _lookup_by_joint(body, link, lookup_fn, labels, keys, return_list, quat_to_deg)
+    return _lookup_by_joint(body, link, lookup_fn, labels, keys, return_list, quat_to_deg, physicsClientId=physicsClientId)
 
-def get_body_info(body, keys=None, return_list=False, quat_to_deg=True):
-    lookup_fn = lambda body, joint: p.getBasePositionAndOrientation(body)
+def get_body_info(body, keys=None, return_list=False, quat_to_deg=True, physicsClientId=0):
+    lookup_fn = lambda body, joint: p.getBasePositionAndOrientation(body, physicsClientId=physicsClientId)
     labels = ['pos', 'theta']
     joint = None
-    return _lookup_by_joint(body, joint, lookup_fn, labels, keys, return_list, quat_to_deg)
+    return _lookup_by_joint(body, joint, lookup_fn, labels, keys, return_list, quat_to_deg, physicsClientId=physicsClientId)
 
-def _lookup_by_joint(body, joint, lookup_fn, labels, keys, return_list, quat_to_deg):
+def _lookup_by_joint(body, joint, lookup_fn, labels, keys, return_list, quat_to_deg, physicsClientId=0):
     keys = keys or labels
     ## get joint index from name if joint is not already an index
-    joint = coerce_to_joint_name(body, joint)
+    joint = coerce_to_joint_name(body, joint, physicsClientId=physicsClientId)
     ## convert keys to a singleton list if keys is not already a list
     keys = coerce_to_list(keys)
     ## ensure all query keys are in labels for this lookup function
@@ -52,7 +52,7 @@ def _lookup_by_joint(body, joint, lookup_fn, labels, keys, return_list, quat_to_
     ## turn any bytes vals into strings (usually `joint_name` or `filename`)
     filtered_d = filter_bytes_to_str(filtered_d)
     ## turn any quaternions into euler angles in degrees
-    if quat_to_deg: filtered_d = filter_quat_to_deg(filtered_d)
+    if quat_to_deg: filtered_d = filter_quat_to_deg(filtered_d, physicsClientId=physicsClientId)
     ####
     output = format_query(filtered_d, keys, return_list)
     return output
@@ -69,9 +69,9 @@ def format_query(filtered_d, keys, return_list):
         ## return dictionary
         return filtered_d
 
-def get_index_by_attribute(body, attr, val):
-    num_joints = p.getNumJoints(body)
-    link_names = {get_joint_info(body, j, attr): j for j in range(num_joints)}
+def get_index_by_attribute(body, attr, val, physicsClientId=0):
+    num_joints = p.getNumJoints(body, physicsClientId=physicsClientId)
+    link_names = {get_joint_info(body, j, attr, physicsClientId=physicsClientId): j for j in range(num_joints)}
     link_index = link_names[val]
     return link_index
 
@@ -79,7 +79,7 @@ def get_index_by_attribute(body, attr, val):
 #### gym env queries ####
 #########################
 
-def format_sim_query(bodies, links, joints):
+def format_sim_query(bodies, links, joints, physicsClientId=0):
     body_queries = bodies
 
     link_queries = links
@@ -87,34 +87,34 @@ def format_sim_query(bodies, links, joints):
     joint_queries = []
     for body, joint in  joints:
         if joint is None:
-            num_joints = p.getNumJoints(body)
+            num_joints = p.getNumJoints(body, physicsClientId=physicsClientId)
             joint_queries.extend([(body, joint) for joint in range(num_joints)])
         else:
-            joint = coerce_to_joint_name(body, joint)
+            joint = coerce_to_joint_name(body, joint, physicsClientId=physicsClientId)
             joint_queries.append((body, joint))
 
     return body_queries, link_queries, joint_queries
 
-def get_sim_state(body_queries=None, link_queries=None, joint_queries=None):
+def get_sim_state(body_queries=None, link_queries=None, joint_queries=None, physicsClientId=0):
     sim_state = []
 
     ## body queries
     for body in body_queries:
-        pos, theta = get_body_info(body, return_list=True, quat_to_deg=False)
+        pos, theta = get_body_info(body, return_list=True, quat_to_deg=False, physicsClientId=physicsClientId)
         sim_state.extend(pos)
         sim_state.extend(theta)
         # print('body: ', body, pos, theta)
 
     ## link queries
     for body, link in link_queries:
-        pos, theta = get_link_state(body, link, ['pos', 'theta'], return_list=True, quat_to_deg=False)
+        pos, theta = get_link_state(body, link, ['pos', 'theta'], return_list=True, quat_to_deg=False, physicsClientId=physicsClientId)
         sim_state.extend(pos)
         sim_state.extend(theta)
         # print('link: ', body, link, pos, theta)
 
     ## joint queries
     for body, joint in joint_queries:
-        pos, vel = get_joint_state(body, joint, ['pos', 'vel'], return_list=True, quat_to_deg=False)
+        pos, vel = get_joint_state(body, joint, ['pos', 'vel'], return_list=True, quat_to_deg=False, physicsClientId=physicsClientId)
         sim_state.append(pos)
         sim_state.append(vel)
         # print('joint: ', body, joint, pos, vel)
@@ -122,20 +122,20 @@ def get_sim_state(body_queries=None, link_queries=None, joint_queries=None):
     sim_state = np.array(sim_state)
     return sim_state
 
-def has_fixed_root(body):
-    if p.getNumJoints(body) == 0:
+def has_fixed_root(body, physicsClientId=0):
+    if p.getNumJoints(body, physicsClientId=physicsClientId) == 0:
         return False
     else:
-        joint_name, joint_type = get_joint_info(body, 0, ['joint_name', 'joint_type'], return_list=True)
+        joint_name, joint_type = get_joint_info(body, 0, ['joint_name', 'joint_type'], return_list=True, physicsClientId=physicsClientId)
         return joint_name == 'base_joint' and joint_type == p.JOINT_FIXED
 
 ##########################
 #### helper functions ####
 ##########################
 
-def coerce_to_joint_name(body, joint):
+def coerce_to_joint_name(body, joint, physicsClientId=0):
     if type(joint) == str:
-        return get_index_by_attribute(body, 'joint_name', joint)
+        return get_index_by_attribute(body, 'joint_name', joint, physicsClientId=physicsClientId)
     else:
         return joint
 
@@ -157,8 +157,8 @@ def filter_bytes_to_str(dictionary):
     return dictionary
 
 
-def filter_quat_to_deg(dictionary):
+def filter_quat_to_deg(dictionary, physicsClientId=0):
     for k, v in dictionary.items():
         if 'theta' in k and len(v) == 4:
-            dictionary[k] = quat_to_deg(v)
+            dictionary[k] = quat_to_deg(v, physicsClientId=physicsClientId)
     return dictionary

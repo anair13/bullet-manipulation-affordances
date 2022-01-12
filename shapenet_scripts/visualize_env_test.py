@@ -5,7 +5,7 @@ import skvideo.io
 from experiments.kuanfang.iql.drawer_pnp_commands import drawer_pnp_commands
 from experiments.kuanfang.iql.drawer_pnp_single_obj_commands import drawer_pnp_single_obj_commands
 
-ts = 150
+ts = 25
 num_traj = 100
 
 #obs_img_dim=196, 
@@ -22,6 +22,7 @@ env = rv.make(
     use_single_obj_idx=1,
     large_obj=False,
     demo_num_ts=ts,
+    move_gripper_task=True,
     # use_trash=True,
     # fixed_drawer_yaw=24.18556394023222,
     # fixed_drawer_position=np.array([0.50850424, 0.11416014, -0.34]),

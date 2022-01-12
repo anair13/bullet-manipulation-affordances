@@ -38,7 +38,7 @@ class SawyerBaseEnv(gym.Env, Serializable):
 
         self.theta = bullet.deg_to_quat([180, 0, 0])
 
-        bullet.connect_headless(self._gui)
+        self._uid = bullet.connect_headless(self._gui)
         # self.set_reset_hook()
         self._set_spaces()
 
@@ -83,14 +83,14 @@ class SawyerBaseEnv(gym.Env, Serializable):
         self.observation_space = gym.spaces.Box(-obs_high, obs_high)
 
     def reset(self):
-        bullet.reset()
-        bullet.setup_headless(self._timestep, solver_iterations=self._solver_iterations)
+        bullet.reset(physicsClientId=self._uid)
+        bullet.setup_headless(self._timestep, solver_iterations=self._solver_iterations, physicsClientId=self._uid)
         self._load_meshes()
         self._format_state_query()
 
 
         self._prev_pos = np.array(self._pos_init)
-        bullet.position_control(self._sawyer, self._end_effector, self._prev_pos, self.theta)
+        bullet.position_control(self._sawyer, self._end_effector, self._prev_pos, self.theta, physicsClientId=self._uid)
         # self._reset_hook(self)
         for _ in range(3):
             self.step([0.,0.,0.,-1])
@@ -112,34 +112,34 @@ class SawyerBaseEnv(gym.Env, Serializable):
             return self._objects[name]
 
     def get_object_midpoint(self, object_key):
-        return bullet.get_midpoint(self._objects[object_key])
+        return bullet.get_midpoint(self._objects[object_key], physicsClientId=self._uid)
 
     def get_end_effector_pos(self):
-        return bullet.get_link_state(self._sawyer, self._end_effector, 'pos')
+        return bullet.get_link_state(self._sawyer, self._end_effector, 'pos', physicsClientId=self._uid)
     
     def get_end_effector_theta(self):
-        return bullet.get_link_state(self._sawyer, self._end_effector, 'theta')
+        return bullet.get_link_state(self._sawyer, self._end_effector, 'theta', physicsClientId=self._uid)
 
     def _load_meshes(self):
-        self._sawyer = bullet.objects.sawyer()
-        self._table = bullet.objects.table()
+        self._sawyer = bullet.objects.sawyer(physicsClientId=self._uid)
+        self._table = bullet.objects.table(physicsClientId=self._uid)
         self._objects = {}
         self._sensors = {}
         self._workspace = bullet.Sensor(self._sawyer,
             xyz_min=self._pos_low, xyz_max=self._pos_high,
-            visualize=False, rgba=[0,1,0,.1])
+            visualize=False, rgba=[0,1,0,.1], physicsClientId=self._uid)
         self._end_effector = bullet.get_index_by_attribute(
-            self._sawyer, 'link_name', 'gripper_site')
+            self._sawyer, 'link_name', 'gripper_site', physicsClientId=self._uid)
 
 
     def _format_state_query(self):
         ## position and orientation of body root
-        bodies = [v for k,v in self._objects.items() if not bullet.has_fixed_root(v)]
+        bodies = [v for k,v in self._objects.items() if not bullet.has_fixed_root(v, physicsClientId=self._uid)]
         ## position and orientation of link
         links = [(self._sawyer, self._end_effector)]
         ## position and velocity of prismatic joint
         joints = [(self._sawyer, None)]
-        self._state_query = bullet.format_sim_query(bodies, links, joints)
+        self._state_query = bullet.format_sim_query(bodies, links, joints, physicsClientId=self._uid)
 
     def _format_action(self, *action):
         if len(action) == 1:
@@ -151,12 +151,12 @@ class SawyerBaseEnv(gym.Env, Serializable):
         return np.array(delta_pos), gripper
 
     def get_observation(self):
-        observation = bullet.get_sim_state(*self._state_query)
+        observation = bullet.get_sim_state(*self._state_query, physicsClientId=self._uid)
         return observation
 
     def step(self, *action):
         delta_pos, gripper = self._format_action(*action)
-        pos = bullet.get_link_state(self._sawyer, self._end_effector, 'pos')
+        pos = bullet.get_link_state(self._sawyer, self._end_effector, 'pos', physicsClientId=self._uid)
         pos += delta_pos * self._action_scale
         pos = np.clip(pos, self._pos_low, self._pos_high)
 
@@ -166,7 +166,7 @@ class SawyerBaseEnv(gym.Env, Serializable):
         observation = self.get_observation()
         reward = self.get_reward(observation)
         done = self.get_termination(observation)
-        self._prev_pos = bullet.get_link_state(self._sawyer, self._end_effector, 'pos')
+        self._prev_pos = bullet.get_link_state(self._sawyer, self._end_effector, 'pos', physicsClientId=self._uid)
         return observation, reward, done, {}
 
     def _simulate(self, pos, theta, gripper):
@@ -175,13 +175,13 @@ class SawyerBaseEnv(gym.Env, Serializable):
                 self._sawyer, self._end_effector,
                 pos, theta,
                 gripper, gripper_bounds=self._gripper_bounds,
-                discrete_gripper=False, max_force=self._max_force
+                discrete_gripper=False, max_force=self._max_force, physicsClientId=self._uid
             )
-            bullet.step_ik()
+            bullet.step_ik(physicsClientId=self._uid)
 
     def render(self, mode='rgb_array'):
         img, depth, segmentation = bullet.render(
-            self._img_dim, self._img_dim, self._view_matrix, self._projection_matrix)
+            self._img_dim, self._img_dim, self._view_matrix, self._projection_matrix, physicsClientId=self._uid)
         return img
 
     def get_termination(self, observation):
@@ -191,14 +191,14 @@ class SawyerBaseEnv(gym.Env, Serializable):
         return 0
 
     def visualize_targets(self, pos):
-        bullet.add_debug_line(self._prev_pos, pos)
+        bullet.add_debug_line(self._prev_pos, pos, physicsClientId=self._uid)
 
     def save_state(self, *save_path):
-        state_id = bullet.save_state(*save_path)
+        state_id = bullet.save_state(*save_path, physicsClientId=self._uid)
         return state_id
 
     def load_state(self, load_path):
-        bullet.load_state(load_path)
+        bullet.load_state(load_path, physicsClientId=self._uid)
         obs = self.get_observation()
         return obs
 

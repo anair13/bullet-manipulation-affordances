@@ -11,9 +11,9 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--name", type=str)
-parser.add_argument("--num_trajectories", type=int, default=6000)
-parser.add_argument("--num_timesteps", type=int, default=100)
-parser.add_argument("--reset_interval", type=int, default=10)
+parser.add_argument("--num_trajectories", type=int, default=4000)
+parser.add_argument("--num_timesteps", type=int, default=150)
+parser.add_argument("--reset_interval", type=int, default=5)
 parser.add_argument("--downsample", action='store_true')
 parser.add_argument("--drawer_sliding", action='store_true')
 parser.add_argument("--offset", type=int, default=0)
@@ -39,7 +39,7 @@ kwargs = {
     # 'fixed_drawer_yaw': 24.18556394023222,
     # 'fixed_drawer_pos': np.array([0.50850424, 0.11416014, -0.34]),
     'use_single_obj_idx': 1,
-    'large_obj': True,
+    'demo_num_ts': args.num_timesteps
 }
 if args.downsample:
     kwargs['downsample'] = True
@@ -77,7 +77,7 @@ skill_to_id: {
 recon_dataset = {
     'observations': np.zeros((args.num_trajectories, args.num_timesteps, imlength), dtype=np.uint8),
     'env': np.zeros((args.num_trajectories, imlength), dtype=np.uint8),
-    'skill_id': np.zeros((args.num_trajectories, ), dtype=uint8)
+    'skill_id': np.zeros((args.num_trajectories, ), dtype=np.uint8)
 }
 
 for j in tqdm(range(args.num_trajectories)):
@@ -91,8 +91,6 @@ for j in tqdm(range(args.num_trajectories)):
         'terminals': np.zeros((args.num_timesteps), dtype=np.uint8),
         'skill_id': 0,
     }
-    trajectory['skill_id'] = info['skill_id']
-    recon_dataset['skill_id'][j] = info['skill_id']
     for i in range(args.num_timesteps):
         img = np.uint8(env.render_obs())
         recon_dataset['observations'][j, i, :] = img.transpose().flatten()
@@ -106,6 +104,8 @@ for j in tqdm(range(args.num_trajectories)):
         trajectory['actions'][i, :] = action
         trajectory['next_observations'].append(next_observation)
         trajectory['rewards'][i] = reward
+        trajectory['skill_id'] = info['skill_id']
+        recon_dataset['skill_id'][j] = info['skill_id']
 
     demo_dataset.append(trajectory)
 
