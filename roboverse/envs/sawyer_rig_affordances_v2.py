@@ -22,7 +22,7 @@ td_close_coeff = 0.20567612 #0.13754340000000412 #0.21567452 #0.1375434000000041
 td_open_coeff = 0.29387810000002523
 td_offset_coeff = 0.001
 
-gripper_bounding_x = [.5, .8] #[.46, .84] #[0.4704, 0.8581]
+gripper_bounding_x = [.5, .775] #[.46, .84] #[0.4704, 0.8581]
 gripper_bounding_y = [-.17, .17] #[-0.1989, 0.2071]
 
 tasks = [
@@ -349,7 +349,22 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         return observation, reward, done, info
 
     def get_info(self):
-        return {}
+        skill_id = None
+        if self.curr_task == 'move_drawer':
+            if self.drawer_skill == 'open':
+                skill_id = 0
+            else:
+                skill_id = 1
+        else:
+            if np.linalg.norm(self.obj_pnp_goal - self.on_top_drawer_goal) < 0.00001:
+                skill_id = 2
+            elif np.linalg.norm(self.obj_pnp_goal - self.in_drawer_goal) < 0.00001:
+                skill_id = 3
+            else:
+                skill_id = 4
+        return {
+            'skill_id' : skill_id
+        }
 
     def get_success_metric(self, curr_state, goal_state, success_list=None, key=None):
         success = 0
@@ -583,12 +598,12 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
                 if not self.handle_more_open_than_closed() and obj_in_drawer is not None:
                     task = 'move_drawer'
                 else:
-                    if r < 3/5:
+                    if r < 2/3:
                         task = 'move_obj_pnp'
                     else:
                         task = 'move_drawer'
             else:
-                if r < 3/5:
+                if r < 2/3:
                     task = 'move_obj_pnp'
                 else:
                     task = 'move_drawer'
@@ -714,7 +729,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
     def get_obj_pnp_goals(self):
         self.on_top_drawer_goal = np.array(list(get_drawer_frame_pos(self._top_drawer)))
         self.on_top_drawer_goal[2] += .1
-        self.on_top_drawer_goal += 0.02 * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])
+        self.on_top_drawer_goal += 0.01 * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])
         self.in_drawer_goal = np.array(list(get_drawer_bottom_pos(self._top_drawer) + 0.02 * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])))
 
         self.out_of_drawer_goal = None
@@ -852,7 +867,6 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         if self.trajectory_done or offset < 5:
             action = np.array([0, 0, 1, 0, -1])
         elif self.curr_task == 'move_obj_pnp' and offset < 20 and offset > 5:
-            print(self.timestep)
             action = np.array([0, 0, -0.25, 0, 1])
         else:
             action = np.append(action, [self.grip])
@@ -888,7 +902,8 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         gripper_above = ee_pos[2] >= -0.105
         if not self.gripper_has_been_above and gripper_above:
             self.gripper_has_been_above = True
-        done = np.linalg.norm(self.td_goal - drawer_handle_pos) < 0.01
+        c = 0.01 if self.drawer_skill == 'open' else 0.02
+        done = np.linalg.norm(self.td_goal - drawer_handle_pos) < c
 
         # Stage 1: if gripper is too low, raise it
         if not self.gripper_has_been_above:
@@ -929,19 +944,25 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         if self.final_timestep and print_stages: print("drawer_yaw: ", self.drawer_yaw, ", drawer_frame_pos: ", get_drawer_frame_pos(self._top_drawer))
         return action, done
 
-    def move_obj_pnp(self, print_stages=False):
+    def move_obj_pnp(self, print_stages=True):
         ee_pos = self.get_end_effector_pos()
         target_pos = self.get_object_pos(self.obj_pnp)
-        aligned = np.linalg.norm(target_pos[:2] - ee_pos[:2]) < 0.025
+        aligned = np.linalg.norm(target_pos[:2] - ee_pos[:2]) < 0.035
         enclosed = np.linalg.norm(target_pos[2] - ee_pos[2]) < 0.025
         done_xy = np.linalg.norm(target_pos[:2] - self.obj_pnp_goal[:2]) < 0.05
         done = done_xy and np.linalg.norm(target_pos[2] - self.obj_pnp_goal[2]) < 0.01
         above = ee_pos[2] >= -0.125
 
         ee_yaw = self.get_end_effector_theta()[2]
-        self.goal_ee_yaw = self.goal_ee_yaw % 180
-        goal_ee_yaw_opts = [self.goal_ee_yaw, self.goal_ee_yaw - 180, self.goal_ee_yaw + 180]
-        goal_ee_yaw = min(goal_ee_yaw_opts, key=lambda x : np.linalg.norm(x - ee_yaw))
+        self.goal_ee_yaw = self.goal_ee_yaw % 360
+        if 0 <= self.goal_ee_yaw < 90:
+            goal_ee_yaw = self.goal_ee_yaw
+        elif 90 <= self.goal_ee_yaw < 270:
+            goal_ee_yaw = self.goal_ee_yaw - 180
+        else:
+            goal_ee_yaw = self.goal_ee_yaw - 360
+        # goal_ee_yaw_opts = [self.goal_ee_yaw, self.goal_ee_yaw - 180, self.goal_ee_yaw + 180]
+        # goal_ee_yaw = min(goal_ee_yaw_opts, key=lambda x : np.linalg.norm(x - ee_yaw))
         # if np.linalg.norm(self.goal_ee_yaw - ee_yaw) < np.linalg.norm(self.goal_ee_yaw - 180 + ee_yaw):
         #     goal_ee_yaw = self.goal_ee_yaw
         # else:
@@ -952,7 +973,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         #     goal_ee_yaw = self.goal_ee_yaw - 90
         # else:
         #     goal_ee_yaw = self.goal_ee_yaw - 360 + 90
-        gripper_yaw_aligned = np.linalg.norm(goal_ee_yaw - ee_yaw) > 5
+        gripper_yaw_aligned = np.linalg.norm(goal_ee_yaw - ee_yaw) > 10
 
         if not aligned and not above:
             if print_stages: print('Stage 1')

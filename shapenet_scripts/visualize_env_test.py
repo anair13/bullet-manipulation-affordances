@@ -28,11 +28,11 @@ env = rv.make(
     # expert_policy_std=0.05,
 )#, downsample=True)  
 
-save_video = False
+save_video = True
 
 if save_video:
     video_save_path = '/2tb/home/patrickhaoy/data/test/'
-    num_traj = 5
+    num_traj = 10
     observations = np.zeros((num_traj*ts, 196, 196, 3))
 
 tasks_success = dict()

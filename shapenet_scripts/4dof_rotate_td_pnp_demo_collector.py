@@ -66,9 +66,18 @@ returns = 0
 act_dim = env.action_space.shape[0]
 num_datasets = 0
 demo_dataset = []
+skill_to_id: {
+    'open_drawer': 0,
+    'close_drawer': 1,
+    'pnp_to_top_of_drawer': 2,
+    'pnp_to_inside_drawer': 3,
+    'pnp_to_outside_drawer': 4,
+}
+
 recon_dataset = {
     'observations': np.zeros((args.num_trajectories, args.num_timesteps, imlength), dtype=np.uint8),
     'env': np.zeros((args.num_trajectories, imlength), dtype=np.uint8),
+    'skill_id': np.zeros((args.num_trajectories, ), dtype=uint8)
 }
 
 for j in tqdm(range(args.num_trajectories)):
@@ -80,9 +89,10 @@ for j in tqdm(range(args.num_trajectories)):
         'actions': np.zeros((args.num_timesteps, act_dim), dtype=np.float),
         'rewards': np.zeros((args.num_timesteps), dtype=np.float),
         'terminals': np.zeros((args.num_timesteps), dtype=np.uint8),
-        'agent_infos': np.zeros((args.num_timesteps), dtype=np.uint8),
-        'env_infos': np.zeros((args.num_timesteps), dtype=np.uint8),
+        'skill_id': 0,
     }
+    trajectory['skill_id'] = info['skill_id']
+    recon_dataset['skill_id'][j] = info['skill_id']
     for i in range(args.num_timesteps):
         img = np.uint8(env.render_obs())
         recon_dataset['observations'][j, i, :] = img.transpose().flatten()
