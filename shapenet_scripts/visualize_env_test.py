@@ -5,7 +5,7 @@ import skvideo.io
 from experiments.kuanfang.iql.drawer_pnp_commands import drawer_pnp_commands
 from experiments.kuanfang.iql.drawer_pnp_single_obj_commands import drawer_pnp_single_obj_commands
 
-ts = 150
+ts = 100
 num_traj = 100
 
 #obs_img_dim=196, 
@@ -17,10 +17,10 @@ env = rv.make(
     drawer_sliding=False, 
     env_obs_img_dim=196, 
     random_color_p=0.0, 
-    test_env=True, 
-    test_env_command=drawer_pnp_single_obj_commands[2],
+    # test_env=True, 
+    # test_env_command=drawer_pnp_single_obj_commands[1],
     use_single_obj_idx=1,
-    large_obj=True,
+    #large_obj=False,
     demo_num_ts=ts,
     #move_gripper_task=True,
     # use_trash=True,

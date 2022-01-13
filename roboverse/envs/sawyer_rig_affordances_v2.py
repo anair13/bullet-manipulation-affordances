@@ -996,7 +996,7 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         if done:
             action = np.array([0, 0, 1, 0])
 
-        if self.final_timestep and print_stages: print("drawer_yaw: ", self.drawer_yaw, ", drawer_frame_pos: ", get_drawer_frame_pos(self._top_drawer))
+        if self.final_timestep and print_stages: print("drawer_yaw: ", self.drawer_yaw, ", drawer_frame_pos: ", get_drawer_frame_pos(self._top_drawer, physicsClientId=self._uid))
         return action, done
 
     def move_obj_pnp(self, print_stages=False):
