@@ -17,9 +17,9 @@ from experiments.kuanfang.iql.drawer_pnp_single_obj_commands import drawer_pnp_s
 ########################################
 parser = argparse.ArgumentParser()
 # parser.add_argument("--name", type=str)
-parser.add_argument("--num_trajectories", type=int, default=100)
-parser.add_argument("--num_timesteps", type=int, default=100)
-parser.add_argument("--save_last_k_steps", type=int, default=25)
+parser.add_argument("--num_trajectories", type=int, default=50)
+parser.add_argument("--num_timesteps", type=int, default=150)
+parser.add_argument("--save_last_k_steps", type=int, default=50)
 parser.add_argument("--downsample", action='store_true')
 parser.add_argument("--drawer_sliding", action='store_true')
 parser.add_argument("--test_env_seeds", nargs='+', type=int)
@@ -32,7 +32,7 @@ args = parser.parse_args()
 num_timesteps = args.num_timesteps
 num_trajectories = args.num_trajectories
 save_last_k_steps = args.save_last_k_steps
-ROOT_PATH = "/2tb/home/patrickhaoy/data/affordances/data/antialias_reset_free_rotated_semicircle_top_drawer_pnp_v2_single_obj_large/"
+ROOT_PATH = "/2tb/home/patrickhaoy/data/affordances/data/antialias_reset_free_rotated_semicircle_top_drawer_pnp_v2_single_obj_place/"
 
 for test_env_seed in args.test_env_seeds:
     data_save_path = ROOT_PATH + "td_pnp_goals_seed{}.pkl".format(str(test_env_seed))
@@ -44,7 +44,8 @@ for test_env_seed in args.test_env_seeds:
     kwargs = {
         'drawer_sliding': True if args.drawer_sliding else False,
         'test_env_command': command,
-        'large_obj': True,
+        # 'large_obj': True,
+        # 'gui': True
     }
     if args.downsample:
         kwargs['downsample'] = True
