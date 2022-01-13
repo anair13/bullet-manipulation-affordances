@@ -206,12 +206,12 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         self._objects = {}
         self._sensors = {}
 
-        self._sawyer = bullet.objects.drawer_sawyer()
-        self._table = bullet.objects.table(rgba=[.92,.85,.7,1])
+        self._sawyer = bullet.objects.drawer_sawyer(physicsClientId=self._uid)
+        self._table = bullet.objects.table(rgba=[.92,.85,.7,1], physicsClientId=self._uid)
         # self._debug1 = bullet.objects.button(pos=[.46, -.19, -.25])
         # self._debug2 = bullet.objects.button(pos=[.84, .19, -.25])
         if self.new_view:
-            self._wall = bullet.objects.wall()
+            self._wall = bullet.objects.wall(physicsClientId=self._uid)
 
         ## Top Drawer
         if self.test_env and not self.test_env_seed:
@@ -242,14 +242,14 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
 
         if self.drawer_sliding:
             if self.red_drawer_base:
-                self._top_drawer = bullet.objects.drawer_sliding_red_base(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color())
+                self._top_drawer = bullet.objects.drawer_sliding_red_base(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color(), physicsClientId=self._uid)
             else:
-                self._top_drawer = bullet.objects.drawer_sliding(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color())
+                self._top_drawer = bullet.objects.drawer_sliding(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color(), physicsClientId=self._uid)
         else:
             if self.red_drawer_base:
-                self._top_drawer = bullet.objects.drawer_red_base(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color())
+                self._top_drawer = bullet.objects.drawer_red_base(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color(), physicsClientId=self._uid)
             else:
-                self._top_drawer = bullet.objects.drawer(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color())
+                self._top_drawer = bullet.objects.drawer(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color(), physicsClientId=self._uid)
         
         # case: full open/close drawer initialization/goal
         if self.full_open_close_init_and_goal:
@@ -260,13 +260,13 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
                 pass
             # case: open drawer initialization + close drawer goal
             else:
-                open_drawer(self._top_drawer, num_ts=60)
+                open_drawer(self._top_drawer, num_ts=60, physicsClientId=self._uid)
         # case: uniform random drawer initialization/goal
         else:
             # randomly initialize how open drawer is
-            open_drawer(self._top_drawer, num_ts=np.random.random_integers(low=1, high=60))
+            open_drawer(self._top_drawer, num_ts=np.random.random_integers(low=1, high=60), physicsClientId=self._uid)
 
-        self.init_handle_pos = get_drawer_handle_pos(self._top_drawer)[1]
+        self.init_handle_pos = get_drawer_handle_pos(self._top_drawer, physicsClientId=self._uid)[1]
 
         ## Distractor Objects
         num_objects = 1 if self.test_env else np.random.randint(3)
@@ -275,14 +275,14 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
 
         self._workspace = bullet.Sensor(self._sawyer,
             xyz_min=self._pos_low, xyz_max=self._pos_high,
-            visualize=False, rgba=[0,1,0,.1])
+            visualize=False, rgba=[0,1,0,.1], physicsClientId=self._uid)
         self._end_effector = bullet.get_index_by_attribute(
-            self._sawyer, 'link_name', 'gripper_site')
+            self._sawyer, 'link_name', 'gripper_site', physicsClientId=self._uid)
     
     def sample_quat(self, object_name):
         if object_name in self.quat_dict:
             return self.quat_dict[self.curr_object]
-        return deg_to_quat(np.random.randint(0, 360, size=3))
+        return deg_to_quat(np.random.randint(0, 360, size=3), physicsClientId=self._uid)
 
     def spawn_object(self, quat=None):
         # Pick object if necessary and save information
@@ -303,16 +303,17 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
             self.scaling,
             object_position,
             quat=quat,
-            rgba=self.curr_color)
+            rgba=self.curr_color, 
+            physicsClientId=self._uid)
 
         # Allow the objects to land softly in low gravity
-        p.setGravity(0, 0, -1)
+        p.setGravity(0, 0, -1, physicsClientId=self._uid)
         for _ in range(100):
-            bullet.step()
+            bullet.step(physicsClientId=self._uid)
         # After landing, bring to stop
-        p.setGravity(0, 0, -10)
+        p.setGravity(0, 0, -10, physicsClientId=self._uid)
         for _ in range(100):
-            bullet.step()
+            bullet.step(physicsClientId=self._uid)
     
     def sample_object_location(self):
         if self.test_env:
@@ -334,9 +335,9 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
 
     def step(self, *action):
         # Get positional information
-        pos = bullet.get_link_state(self._sawyer, self._end_effector, 'pos')
-        curr_angle = bullet.get_link_state(self._sawyer, self._end_effector, 'theta')
-        default_angle = quat_to_deg(self.default_theta)
+        pos = bullet.get_link_state(self._sawyer, self._end_effector, 'pos', physicsClientId=self._uid)
+        curr_angle = bullet.get_link_state(self._sawyer, self._end_effector, 'theta', physicsClientId=self._uid)
+        default_angle = quat_to_deg(self.default_theta, physicsClientId=self._uid)
 
         # Keep necesary degrees of theta fixed
         angle = np.append(default_angle[:2], [curr_angle[2]])
@@ -491,7 +492,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
     def render_obs(self):
         img, depth, segmentation = bullet.render(
             self.env_obs_img_dim, self.env_obs_img_dim, self._view_matrix_obs,
-            self._projection_matrix_obs, shadow=0, gaussian_width=0)
+            self._projection_matrix_obs, shadow=0, gaussian_width=0, physicsClientId=self._uid)
         
         if self.downsample:
             im = Image.fromarray(np.uint8(img), 'RGB').resize(self.image_shape, resample=Image.ANTIALIAS)
@@ -533,8 +534,8 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
             self.trajectory_done = False
 
         # Load Environment
-        bullet.reset()
-        bullet.setup_headless(self._timestep, solver_iterations=self._solver_iterations)
+        bullet.reset(physicsClientId=self._uid)
+        bullet.setup_headless(self._timestep, solver_iterations=self._solver_iterations, physicsClientId=self._uid)
         self._load_table()
         self._format_state_query()
 
@@ -542,7 +543,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         init_pos = np.array(self._pos_init)
         self.sample_goals()
 
-        bullet.position_control(self._sawyer, self._end_effector, init_pos, self.default_theta)
+        bullet.position_control(self._sawyer, self._end_effector, init_pos, self.default_theta, physicsClientId=self._uid)
 
         # Move to starting positions
         action = np.array([0 for i in range(self.DoF)] + [-1])
@@ -558,13 +559,13 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
 
     def get_observation(self):
         left_tip_pos = bullet.get_link_state(
-            self._sawyer, 'right_gripper_l_finger_joint', keys='pos')
+            self._sawyer, 'right_gripper_l_finger_joint', keys='pos', physicsClientId=self._uid)
         right_tip_pos = bullet.get_link_state(
-            self._sawyer, 'right_gripper_r_finger_joint', keys='pos')
+            self._sawyer, 'right_gripper_r_finger_joint', keys='pos', physicsClientId=self._uid)
         left_tip_pos = np.asarray(left_tip_pos)
         right_tip_pos = np.asarray(right_tip_pos)
         hand_theta = bullet.get_link_state(self._sawyer, self._end_effector,
-            'theta', quat_to_deg=False)
+            'theta', quat_to_deg=False, physicsClientId=self._uid)
 
         gripper_tips_distance = [np.linalg.norm(
             left_tip_pos - right_tip_pos)]
@@ -594,7 +595,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         return None
 
     def get_drawer_handle_future_pos(self, coeff):
-        drawer_frame_pos = get_drawer_frame_pos(self._top_drawer)
+        drawer_frame_pos = get_drawer_frame_pos(self._top_drawer, physicsClientId=self._uid)
         return drawer_frame_pos + coeff * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])
 
     def handle_more_open_than_closed(self):
@@ -647,7 +648,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         self.goal_state = np.concatenate([[0 for _ in range(8)], self.td_goal])
 
     def get_td_handle_pos(self):
-        return np.array(get_drawer_handle_pos(self._top_drawer))
+        return np.array(get_drawer_handle_pos(self._top_drawer, physicsClientId=self._uid))
 
     ### DEMO COLLECTING FUNCTIONS BEYOND THIS POINT ###
     def demo_reset(self):
@@ -701,7 +702,7 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         ee_yaw = self.get_end_effector_theta()[2]
 
         drawer_handle_pos = self.get_td_handle_pos()
-        drawer_frame_pos = get_drawer_frame_pos(self._top_drawer)
+        drawer_frame_pos = get_drawer_frame_pos(self._top_drawer, physicsClientId=self._uid)
         ee_early_stage_goal_pos = drawer_handle_pos - td_offset_coeff * np.array([np.sin((self.drawer_yaw+180) * np.pi / 180) , -np.cos((self.drawer_yaw+180) * np.pi / 180), 0])
 
         if 0 <= self.drawer_yaw < 90:

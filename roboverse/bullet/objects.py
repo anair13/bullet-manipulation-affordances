@@ -18,7 +18,10 @@ def loader_randomize_color(*filepath, **defaults):
 
         if 'deg' in defaults:
           assert 'quat' not in defaults
-          defaults['quat'] = deg_to_quat(defaults['deg'], physicsClientId=defaults['physicsClientId'])
+          if 'physicsClientId' in defaults:
+            defaults['quat'] = deg_to_quat(defaults['deg'], physicsClientId=defaults['physicsClientId'])
+          else:
+            defaults['quat'] = deg_to_quat(defaults['deg'])
           del defaults['deg']
         return load_urdf_randomize_color(filepath, **defaults)
     return fn
@@ -30,7 +33,10 @@ def loader(*filepath, **defaults):
 
         if 'deg' in defaults:
           assert 'quat' not in defaults
-          defaults['quat'] = deg_to_quat(defaults['deg'], physicsClientId=defaults['physicsClientId'])
+          if 'physicsClientId' in defaults:
+            defaults['quat'] = deg_to_quat(defaults['deg'], physicsClientId=defaults['physicsClientId'])
+          else:
+            defaults['quat'] = deg_to_quat(defaults['deg'])
           del defaults['deg']
         return load_urdf(filepath, **defaults)
     return fn
