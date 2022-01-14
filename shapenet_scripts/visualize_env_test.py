@@ -5,7 +5,7 @@ import skvideo.io
 from experiments.kuanfang.iql.drawer_pnp_commands import drawer_pnp_commands
 from experiments.kuanfang.iql.drawer_pnp_single_obj_commands import drawer_pnp_single_obj_commands
 
-ts = 100
+ts = 150
 num_traj = 100
 
 #obs_img_dim=196, 
@@ -30,7 +30,7 @@ env = rv.make(
     # downsample=True,
 )
 
-save_video = False
+save_video = True
 
 if save_video:
     video_save_path = '/2tb/home/patrickhaoy/data/test/'
