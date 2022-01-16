@@ -322,8 +322,8 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
             )
 
             large_object_within_gripper_range = True
-            if not (gripper_bounding_x[0] - .04 <= pos[0] and pos[0] <= gripper_bounding_x[1] + .04 \
-                and gripper_bounding_y[0] - .04 <= pos[1] and pos[1] <= gripper_bounding_y[1] + .04):
+            if not (gripper_bounding_x[0] - .1 <= pos[0] and pos[0] <= gripper_bounding_x[1] + .1 \
+                and gripper_bounding_y[0] - .1 <= pos[1] and pos[1] <= gripper_bounding_y[1] + .1):
                 objects_within_gripper_range = False
                 break
                         
