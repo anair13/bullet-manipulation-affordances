@@ -148,6 +148,9 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         if self.full_open_close_init_and_goal:
             self.current_goal_is_open = False
 
+        # Move Gripper Task
+        self.move_gripper_task = kwargs.pop('move_gripper_task', False)
+
         super().__init__(*args, **kwargs)
 
         # Need to overwrite in some cases, registration isnt working
@@ -515,6 +518,8 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         return reward
 
     def sample_goals(self):
+        if self.move_gripper_task:
+            self.update_gripper_goal()
         self.update_drawer_goal()
         self.update_goal_state()
 
@@ -615,6 +620,23 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         goal_pos = goal_state['state_desired_goal'][8:11]
         return self.drawer_done(curr_pos, goal_pos)
 
+    def update_gripper_goal(self, init_pos=False):
+        if init_pos:
+            self.gripper_goal_pos = np.array(self._pos_init)
+            self.gripper_goal_yaw = 180
+            self.gripper_goal_grip = -1
+            self.gripper_task = 'to_init_pos'
+        else:
+            x_range = [0.4704, 0.8581]
+            y_range = [-0.1989, 0.2071]
+            z_range = [-0.4, -0.05]
+            self.gripper_goal_pos = np.array([random.uniform(*x_range), random.uniform(*y_range), random.uniform(*z_range)])
+            while np.linalg.norm(self.gripper_goal_pos - self._pos_init) < .1:
+                self.gripper_goal_pos = np.array([random.uniform(*x_range), random.uniform(*y_range), random.uniform(*z_range)])
+            self.gripper_goal_yaw = random.uniform(0, 360)
+            self.gripper_goal_grip = random.uniform(-1, 1)
+            self.gripper_task = 'to_random_pos'
+
     def update_drawer_goal(self):
         # case: full open/close drawer initialization/goal
         if self.full_open_close_init_and_goal:
@@ -666,7 +688,10 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
         if self.drawer_sliding:
             self.td_goal = self.get_drawer_handle_future_pos(self.td_goal_coeff) # update goal in case drawer slides
 
-        action, done = self.move_drawer()
+        if self.move_gripper_task:
+            action, done = self.move_gripper()
+        else:
+            action, done = self.move_drawer()
 
         if self.expl:
             if first_timestep:
@@ -696,6 +721,34 @@ class SawyerRigAffordancesV1(SawyerBaseEnv):
 
         return action
     
+    def move_gripper(self, print_stages=False):
+        done = False
+        ee_pos = self.get_end_effector_pos()
+        ee_yaw = self.get_end_effector_theta()[2]
+        
+        if 0 <= self.gripper_goal_yaw < 90:
+            goal_ee_yaw = self.gripper_goal_yaw
+        elif 90 <= self.gripper_goal_yaw < 270:
+            goal_ee_yaw = self.gripper_goal_yaw - 180
+        else:
+            goal_ee_yaw = self.gripper_goal_yaw - 360
+
+        action = np.zeros((4,))
+        if goal_ee_yaw > ee_yaw:
+            action[3] = 1
+        else:
+            action[3] = -1
+
+        diff = (self.gripper_goal_pos - ee_pos) * 2
+        if self.gripper_task == 'to_random_pos':
+            diff *= 3
+        action[0] = diff[0]
+        action[1] = diff[1]
+        action[2] = diff[2]
+        self.grip = self.gripper_goal_grip
+    
+        return action, done
+
     def move_drawer(self, print_stages=False):
         self.grip = -1
         ee_pos = self.get_end_effector_pos()

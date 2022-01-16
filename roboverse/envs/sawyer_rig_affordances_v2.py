@@ -911,9 +911,9 @@ class SawyerRigAffordancesV2(SawyerBaseEnv):
         ee_pos = self.get_end_effector_pos()
         ee_yaw = self.get_end_effector_theta()[2]
         
-        if 0 <= self.goal_ee_yaw < 90:
+        if 0 <= self.gripper_goal_yaw < 90:
             goal_ee_yaw = self.gripper_goal_yaw
-        elif 90 <= self.goal_ee_yaw < 270:
+        elif 90 <= self.gripper_goal_yaw < 270:
             goal_ee_yaw = self.gripper_goal_yaw - 180
         else:
             goal_ee_yaw = self.gripper_goal_yaw - 360

@@ -10,27 +10,31 @@ num_traj = 100
 
 #obs_img_dim=196, 
 env = rv.make(
-    "SawyerRigAffordances-v2", 
-    gui=False, 
+    "SawyerRigAffordances-v1", 
+    gui=True, 
     expl=True, 
     reset_interval=1, 
     drawer_sliding=False, 
     env_obs_img_dim=196, 
     random_color_p=0.0, 
-    test_env=True, 
-    test_env_command=drawer_pnp_single_obj_commands[2],
-    use_single_obj_idx=1,
-    large_obj=True,
-    demo_num_ts=ts,
+    # test_env=True, 
+    # test_env_command=drawer_pnp_single_obj_commands[2],
+    # use_single_obj_idx=1,
+    # large_obj=True,
+    # demo_num_ts=ts,
     #move_gripper_task=True,
     # use_trash=True,
     # fixed_drawer_yaw=24.18556394023222,
     # fixed_drawer_position=np.array([0.50850424, 0.11416014, -0.34]),
     expert_policy_std=0.15,
     downsample=True,
+    move_gripper_task=True,
+    close_view=True,
+    new_view=True,
+    fix_drawer_orientation_semicircle=True,
 )#, downsample=True)  
 
-save_video = True
+save_video = False
 
 if save_video:
     video_save_path = '/2tb/home/patrickhaoy/data/test/'
@@ -41,13 +45,19 @@ tasks_success = dict()
 tasks_count = dict()
 for i in range(num_traj):
     env.demo_reset()
-    curr_task = env.curr_task
+    curr_task = None #env.curr_task
     is_done = False
     for t in range(ts):
+        if t == 60:
+            print(t)
+            env.update_gripper_goal(init_pos=True)
+            env.timestep = 0
         if save_video:
             img = np.uint8(env.render_obs())
             observations[i*ts + t, :] = img
-        action, done = env.get_demo_action(first_timestep=(t == 0), final_timestep=(t == ts - 1), return_done=True)
+        action = env.get_demo_action(first_timestep=(t == 0), final_timestep=(t == ts - 1))
+        done = False
+        #action, done = env.get_demo_action(first_timestep=(t == 0), final_timestep=(t == ts - 1), return_done=True)
         next_observation, reward, _, info = env.step(action)
         if done and not is_done:
             is_done = True 
