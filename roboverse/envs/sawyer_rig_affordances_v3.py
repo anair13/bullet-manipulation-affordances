@@ -18,8 +18,8 @@ from PIL import Image
 import pkgutil
 
 # Constants
-td_close_coeff = 0.16298369 #0.20567612 #0.13754340000000412 #0.21567452 #0.13754340000000412
-td_open_coeff = 0.23500114 #0.29387810000002523
+td_close_coeff = 0.21060003 #0.16298369 #0.20567612 #0.13754340000000412 #0.21567452 #0.13754340000000412
+td_open_coeff = 0.2580868 #0.23500114 #0.29387810000002523
 td_offset_coeff = 0.01
 
 gripper_bounding_x = [.5, .8] #[.46, .84] #[0.4704, 0.8581]
@@ -209,7 +209,9 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
 
         self.top_drawer_quadrant = random.choice([0, 1])
         self.large_object_quadrant = random.choice(list(set([0, 1, 2, 3]) - set([self.top_drawer_quadrant])))
-        is_close_drawer = np.random.uniform() < .5
+
+        ## HARDCODE
+        is_close_drawer = False #np.random.uniform() < .5
 
         ## Top Drawer
         if self.test_env:
@@ -234,7 +236,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
 
         quat = deg_to_quat([0, 0, self.drawer_yaw], physicsClientId=self._uid)
         
-        drawer_scale = .1
+        drawer_scale = .11
         if self.drawer_sliding:
             self._top_drawer = bullet.objects.drawer_sliding_lightblue_base(quat=quat, pos=drawer_frame_pos, rgba=self.sample_object_color(), physicsClientId=self._uid, scale=drawer_scale)
         else:
@@ -243,6 +245,11 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         open_drawer(self._top_drawer, 100, physicsClientId=self._uid)
 
         self.init_handle_pos = get_drawer_handle_pos(self._top_drawer, physicsClientId=self._uid)[1]
+
+        self._debug1 = bullet.objects.cube(
+            pos=self.get_td_handle_pos() - .15 * np.array([np.sin((self.drawer_yaw+180) * np.pi / 180) , -np.cos((self.drawer_yaw+180) * np.pi / 180), 0]), 
+            scale=.09
+        )
 
         ## Small Object(s)
         self._objs = []
@@ -269,14 +276,16 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
                 self.get_obj_pnp_goals()
                 possible_goals = [self.on_top_drawer_goal, self.in_drawer_goal, self.out_of_drawer_goal]
                 if self.use_single_obj_idx:
-                    goals = [(self.obj_rgbas[self.use_single_obj_idx], random.choice(possible_goals))]
+                    ## HARDCODE
+                    goals = [(self.obj_rgbas[self.use_single_obj_idx], self.in_drawer_goal)]
+                    #goals = [(self.obj_rgbas[self.use_single_obj_idx], random.choice(possible_goals))]
                 else:
                     # red, yellow green, teal
                     goals = zip(self.obj_rgbas, possible_goals)
                 for rgba, pos in goals:
-                    if random.uniform(0, 1) < .5:
-                        pos = self.out_of_drawer_goal + np.array([0, 0, 0.5])
-                        self.get_obj_pnp_goals()
+                    # if random.uniform(0, 1) < .5:
+                    #     pos = self.out_of_drawer_goal + np.array([0, 0, 0.5])
+                    #     self.get_obj_pnp_goals()
                     self._init_objs_pos.append(pos)
                     self._objs.append(self.spawn_object(object_position=pos, rgba=rgba))
                 
@@ -311,7 +320,8 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
 
         ## Large Object
         quadrant = slide_quadrants[self.large_object_quadrant]
-        pos = np.array([quadrant[0], quadrant[1], -0.3525])
+        ## HARCODE
+        pos = np.array([0, 0, 0]) #np.array([quadrant[0], quadrant[1], -0.3525])
         self._large_obj = bullet.objects.cube(
             pos=pos, 
             quat=deg_to_quat([0, 0, 0]), 
@@ -344,7 +354,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
     def sample_quat(self):
         return deg_to_quat(np.array([random.randint(0, 360), random.randint(0, 360), random.randint(0, 360)]), physicsClientId=self._uid)
 
-    def spawn_object(self, object_position=None, quat=None, rgba=[0, 1, 0, 1], scale=1.4):
+    def spawn_object(self, object_position=None, quat=None, rgba=[0, 1, 0, 1], scale=2.0):
         # Pick object if necessary and save information
         assert object_position is not None
 
@@ -848,7 +858,10 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
                     obj_to_be_on_drawer.discard(obj_in_drawer)
             else:
                 obj_to_be_in_drawer = set(self._objs)
-            
+            	
+            if not self.handle_more_open_than_closed():	
+                obj_to_be_in_drawer = set()
+
             possible_goals = [
                 (self.in_drawer_goal, list(obj_to_be_in_drawer)),
                 (self.on_top_drawer_goal, list(obj_to_be_on_drawer)),
@@ -882,8 +895,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         # Add some randomness in case it gets stuck
         self.goal_ee_yaw += np.random.uniform(0, 10)
 
-        # self._debug1 = bullet.objects.button(pos=self.obj_pnp_goal)
-            
+        # self._debug1 = bullet.objects.button(pos=self.obj_pnp_goal)  
 
     def update_drawer_goal(self, task_info=None):
         if self.handle_more_open_than_closed():
@@ -949,6 +961,9 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         action = np.clip(action, a_min=-1, a_max=1)
         self.timestep += 1
 
+        ## HARDCODE
+        action = np.array([0, 0, 0, 0, 0])
+
         if return_done:
             return action, done
         return action
@@ -976,7 +991,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         gripper_above = ee_pos[2] >= -0.105
         if not self.gripper_has_been_above and gripper_above:
             self.gripper_has_been_above = True
-        c = 0.01 if self.drawer_skill == 'open' else 0.02
+        c = 0.001 if self.drawer_skill == 'open' else 0.002
         done = np.linalg.norm(self.td_goal - drawer_handle_pos) < c
 
         # Stage 1: if gripper is too low, raise it
@@ -1008,7 +1023,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         else:
             if print_stages: print('Stage 5')
             xy_action = self.td_goal - drawer_handle_pos
-            s = 12 if self.drawer_skill == 'open' else 0.25
+            s = 12#10 if self.drawer_skill == 'open' else 0.25
             action = s*np.array([xy_action[0], xy_action[1], 0, 0])
             # if self.drawer_skill == 'open':
             #     action *= 1.0

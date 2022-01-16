@@ -13,7 +13,7 @@ env = rv.make(
     "SawyerRigAffordances-v3", 
     gui=True, 
     expl=True, 
-    reset_interval=5, 
+    reset_interval=1, 
     drawer_sliding=False, 
     env_obs_img_dim=196, 
     random_color_p=0.0, 
@@ -30,7 +30,7 @@ env = rv.make(
     # downsample=True,
 )
 
-save_video = True
+save_video = False
 
 if save_video:
     video_save_path = '/2tb/home/patrickhaoy/data/test/'
