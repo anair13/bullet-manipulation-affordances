@@ -2,8 +2,9 @@
 <robot name="cube.urdf">
   <link name="cube">
     <contact>
-      <lateral_friction value="1.0"/>
-      <rolling_friction value="0.0"/>
+      <rolling_friction value="1000.0"/>
+      <lateral_friction value="1000.0"/>
+      <spinning_friction value="1000.0"/>
       <contact_cfm value="0.0"/>
       <contact_erp value="1.0"/>
     </contact>
