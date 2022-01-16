@@ -152,7 +152,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         self.obj_rgbas = [[0.93, .294, .169, 1], [.5, 1., 0., 1], [0., .502, .502, 1]] # red, yellow green, teal
         self.use_single_obj_idx = kwargs.pop('use_single_obj_idx', None)
         self.obj_pnp = None
-        self.obj_push = None
+        self.obj_slide = None
         self.gripper_in_right_position = False
 
         # Demo
@@ -208,10 +208,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         # self._debug3 = bullet.objects.button(pos=slide_quadrants[3] + [-.35], scale=.1)
 
         self.top_drawer_quadrant = random.choice([0, 1])
-        self.large_object_quadrant = random.choice(list(set([0, 1, 2, 3]) - set([self.top_drawer_quadrant])))
-
-        ## HARDCODE
-        is_close_drawer = False #np.random.uniform() < .5
+        is_close_drawer = np.random.uniform() < .5
 
         ## Top Drawer
         if self.test_env:
@@ -232,7 +229,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
                         break
                     tries += 1
                     if (tries > 25):
-                        self.drawer_yaw = random.uniform(0, 180)
+                        self.drawer_yaw = self.fixed_drawer_yaw if self.fixed_drawer_yaw else random.uniform(0, 180)
 
         quat = deg_to_quat([0, 0, self.drawer_yaw], physicsClientId=self._uid)
         
@@ -245,11 +242,6 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         open_drawer(self._top_drawer, 100, physicsClientId=self._uid)
 
         self.init_handle_pos = get_drawer_handle_pos(self._top_drawer, physicsClientId=self._uid)[1]
-
-        self._debug1 = bullet.objects.cube(
-            pos=self.get_td_handle_pos() - .15 * np.array([np.sin((self.drawer_yaw+180) * np.pi / 180) , -np.cos((self.drawer_yaw+180) * np.pi / 180), 0]), 
-            scale=.09
-        )
 
         ## Small Object(s)
         self._objs = []
@@ -276,9 +268,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
                 self.get_obj_pnp_goals()
                 possible_goals = [self.on_top_drawer_goal, self.in_drawer_goal, self.out_of_drawer_goal]
                 if self.use_single_obj_idx:
-                    ## HARDCODE
-                    goals = [(self.obj_rgbas[self.use_single_obj_idx], self.in_drawer_goal)]
-                    #goals = [(self.obj_rgbas[self.use_single_obj_idx], random.choice(possible_goals))]
+                    goals = [(self.obj_rgbas[self.use_single_obj_idx], random.choice(possible_goals))]
                 else:
                     # red, yellow green, teal
                     goals = zip(self.obj_rgbas, possible_goals)
@@ -318,10 +308,15 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
             if is_close_drawer:
                 close_drawer(self._top_drawer, 200, physicsClientId=self._uid)
 
+        large_object_quadrant_opts = list(set([0, 1, 2, 3]) - set([self.top_drawer_quadrant]))
+        for opt in large_object_quadrant_opts:
+            if np.linalg.norm(np.array(slide_quadrants[opt]) - self.get_drawer_handle_future_pos(td_open_coeff)[:2]) < .1:
+                large_object_quadrant_opts.remove(opt)
+        self.large_object_quadrant = random.choice(large_object_quadrant_opts)
+
         ## Large Object
         quadrant = slide_quadrants[self.large_object_quadrant]
-        ## HARCODE
-        pos = np.array([0, 0, 0]) #np.array([quadrant[0], quadrant[1], -0.3525])
+        pos = np.array([quadrant[0], quadrant[1], -0.3525])
         self._large_obj = bullet.objects.cube(
             pos=pos, 
             quat=deg_to_quat([0, 0, 0]), 
@@ -648,9 +643,23 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
                 # Object in drawer and drawer closed
                 if not self.handle_more_open_than_closed() and obj_in_drawer is not None:
                     opts.remove('move_obj_pnp')
-                # Drawer is open and blocks goal
+                # Object blocks drawer
+                obj_pos = self.get_position_of_object_idx(self.use_single_obj_idx)
+                large_obj_pos = self.get_object_pos(self.obj_slide)
+                for base_pos in [self.get_drawer_handle_future_pos(td_open_coeff), self.get_td_handle_pos()]:
+                    for offset in [i * self.obj_thresh / 4 for i in range(4+1)]:
+                        no_obj_center = base_pos - offset * np.array([np.sin((self.drawer_yaw+180) * np.pi / 180) , -np.cos((self.drawer_yaw+180) * np.pi / 180), 0])
+                        if np.linalg.norm(obj_pos[:2] - no_obj_center[:2]) < self.obj_thresh + .02 or np.linalg.norm(large_obj_pos[:2] - no_obj_center[:2]) < self.obj_thresh + .02:
+                            opts.remove('move_drawer')
+                            break
+                    else:
+                        continue
+                    break
+                # Open drawer blocks obj
                 if np.linalg.norm(self.obj_slide_goal[:2] - self.get_td_handle_pos()[:2]) < self.obj_thresh:
                     opts.remove('move_obj_slide')
+                if len(opts) == 0:
+                    opts = ['move_drawer']
                 task = random.choice(opts)
             else:
                 r = random.uniform(0, 1)
@@ -784,7 +793,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
     def get_obj_pnp_goals(self):
         self.on_top_drawer_goal = np.array(list(get_drawer_frame_pos(self._top_drawer, physicsClientId=self._uid)))
         self.on_top_drawer_goal[2] += .1
-        self.on_top_drawer_goal -= 0.05 * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])
+        self.on_top_drawer_goal -= 0.0125 * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])
         self.in_drawer_goal = np.array(list(get_drawer_bottom_pos(self._top_drawer, physicsClientId=self._uid) + 0.0125 * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])))
 
         #self._debug1 = bullet.objects.button(pos=self.in_drawer_goal + np.array([0, 0, 0]))
@@ -960,9 +969,6 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
 
         action = np.clip(action, a_min=-1, a_max=1)
         self.timestep += 1
-
-        ## HARDCODE
-        action = np.array([0, 0, 0, 0, 0])
 
         if return_done:
             return action, done
