@@ -11,9 +11,9 @@ num_traj = 100
 #obs_img_dim=196, 
 env = rv.make(
     "SawyerRigAffordances-v3", 
-    gui=True, 
+    gui=False, 
     expl=True, 
-    reset_interval=1, 
+    reset_interval=5, 
     drawer_sliding=False, 
     env_obs_img_dim=196, 
     random_color_p=0.0, 
@@ -30,16 +30,17 @@ env = rv.make(
     # downsample=True,
 )
 
-save_video = False
+save_video = True
 
 if save_video:
     video_save_path = '/2tb/home/patrickhaoy/data/test/'
-    num_traj = 1
-    observations = np.zeros((num_traj*ts, 48, 48, 3))
+    num_traj = 10
+    observations = np.zeros((num_traj*ts, 196, 196, 3))
 
 tasks_success = dict()
 tasks_count = dict()
 for i in range(num_traj):
+    print(i)
     env.demo_reset()
     curr_task = env.curr_task
     is_done = False
