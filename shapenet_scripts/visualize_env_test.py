@@ -30,7 +30,7 @@ env = rv.make(
     # downsample=True,
 )
 
-save_video = True
+save_video = False
 
 if save_video:
     video_save_path = '/2tb/home/patrickhaoy/data/test/'

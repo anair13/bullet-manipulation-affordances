@@ -442,7 +442,26 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         return observation, reward, done, info
 
     def get_info(self):
-        return {}
+        skill_id = None
+        if self.curr_task == 'move_drawer':
+            if self.drawer_skill == 'open':
+                skill_id = 0
+            else:
+                skill_id = 1
+        elif self.curr_task == 'move_obj_slide':
+            skill_id = 6
+        else:
+            if np.linalg.norm(self.obj_pnp_goal - self.on_top_drawer_goal) < 0.00001:
+                skill_id = 2
+            elif np.linalg.norm(self.obj_pnp_goal - self.in_drawer_goal) < 0.00001:
+                skill_id = 3
+            elif np.linalg.norm(self.obj_pnp_goal - self.out_of_drawer_goal) < 0.00001:
+                skill_id = 4
+            else:
+                skill_id = 5
+        return {
+            'skill_id' : skill_id
+        }
 
     def get_success_metric(self, curr_state, goal_state, success_list=None, key=None):
         success = 0
@@ -455,10 +474,13 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
             goal_pos_1 = goal_state[14:17]
             curr_pos_2 = curr_state[17:20]
             goal_pos_2 = goal_state[17:20]
+            curr_pos_3 = curr_state[20:23]
+            goal_pos_3 = goal_state[20:23]
             success = int(self.drawer_done(curr_pos, goal_pos))\
                 and int(self.obj_pnp_done(curr_pos_0, goal_pos_0)) \
                 and int(self.obj_pnp_done(curr_pos_1, goal_pos_1)) \
-                and int(self.obj_pnp_done(curr_pos_2, goal_pos_2))
+                and int(self.obj_pnp_done(curr_pos_2, goal_pos_2)) \
+                and int(self.obj_slide_done(curr_pos_3, goal_pos_3))
         elif key == 'top_drawer':
             curr_pos = curr_state[8:11]
             goal_pos = goal_state[8:11]
@@ -485,6 +507,10 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
             curr_pos_2 = curr_state[17:20]
             goal_pos_2 = goal_state[17:20]
             success = int(self.obj_pnp_done(curr_pos_2, goal_pos_2))
+        elif key == 'obj_slide':
+            curr_pos = curr_state[20:23]
+            goal_pos = goal_state[20:23]
+            success = int(self.obj_slide_done(curr_pos, goal_pos))
         else:
             pos = curr_state[0:3]
             goal_pos = goal_state[0:3]
@@ -535,6 +561,10 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
             curr_pos_2 = curr_state[17:20]
             goal_pos_2 = goal_state[17:20]
             distance = np.linalg.norm(curr_pos_2 - goal_pos_2)
+        elif key == 'obj_slide':
+            curr_pos = curr_state[20:23]
+            goal_pos = goal_state[20:23]
+            distance = np.linalg.norm(curr_pos - goal_pos)
         else:
             pos = curr_state[0:3]
             goal_pos = goal_state[0:3]
@@ -577,8 +607,8 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         state_key = "state_observation"
         goal_key = "state_desired_goal"
 
-        success_keys = ["overall", "top_drawer", "obj_pnp", "obj_pnp_0", "obj_pnp_1", "obj_pnp_2", "gripper_position", "gripper_rotation_roll", "gripper_rotation_pitch", "gripper_rotation_yaw", "gripper_rotation", "gripper"]
-        distance_keys = ["top_drawer", "obj_pnp", "obj_pnp_0", "obj_pnp_1", "obj_pnp_2", "gripper_position", "gripper_rotation_roll", "gripper_rotation_pitch", "gripper_rotation_yaw", "gripper_rotation"]
+        success_keys = ["overall", "top_drawer", "obj_pnp", "obj_pnp_0", "obj_pnp_1", "obj_pnp_2", "obj_slide", "gripper_position", "gripper_rotation_roll", "gripper_rotation_pitch", "gripper_rotation_yaw", "gripper_rotation", "gripper"]
+        distance_keys = ["top_drawer", "obj_pnp", "obj_pnp_0", "obj_pnp_1", "obj_pnp_2", "obj_slide", "gripper_position", "gripper_rotation_roll", "gripper_rotation_pitch", "gripper_rotation_yaw", "gripper_rotation"]
 
         dict_of_success_lists = {}
         for k in success_keys:
@@ -647,14 +677,17 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         curr_state = self.get_observation()['state_achieved_goal']
         td_success = self.get_success_metric(curr_state, self.goal_state, key='top_drawer')
         obj_pnp_success = self.get_success_metric(curr_state, self.goal_state, key='obj_pnp')
+        obj_slide_success = self.get_success_metric(curr_state, self.goal_state, key='obj_slide')
         if print_stats:
             print('-----------------')
             print('Top Drawer: ', td_success)
             print('Obj Pnp: ', obj_pnp_success)
-        reward = td_success + obj_pnp_success
+            print('Obj Slide: ', obj_slide_success)
+        reward = td_success + obj_pnp_success + obj_slide_success
         return reward
 
     def sample_goals(self):
+        #TODO(Patrick): test_env
         if self.test_env:
             task, task_info = self.test_env_command['command_sequence'][self.reset_counter]
             if task == 'move_drawer':
@@ -693,7 +726,16 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
                     opts.remove('move_obj_slide')
                 if len(opts) == 0:
                     opts = ['move_drawer']
-                task = random.choice(opts)
+                
+                if len(opts) >= 2:
+                    if 'move_obj_pnp' in opts and random.uniform(0, 1) > .4:
+                        task = 'move_obj_pnp'
+                    elif 'move_drawer' in opts and random.uniform(0, 1) > .4:
+                        task = 'move_drawer'
+                    else:
+                        task = random.choice(opts)
+                else:
+                    task = random.choice(opts)
             else:
                 r = random.uniform(0, 1)
                 if r < 1/3:
@@ -761,12 +803,14 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         obj1_pos = self.get_position_of_object_idx(1)
         obj2_pos = self.get_position_of_object_idx(2)
 
-        #(hand_pos, hand_theta, gripper, td_pos, obj0_pos, obj1_pos, obj2_pos)
-        #(3, 4, 1, 3, 3, 3, 3)
+        large_obj_pos = self.get_object_pos(self._large_obj)
+
+        #(hand_pos, hand_theta, gripper, td_pos, obj0_pos, obj1_pos, obj2_pos, large_obj_pos)
+        #(3, 4, 1, 3, 3, 3, 3, 3)
         observation = np.concatenate((
             end_effector_pos, hand_theta, gripper_tips_distance, 
             top_drawer_pos,
-            obj0_pos, obj1_pos, obj2_pos,
+            obj0_pos, obj1_pos, obj2_pos, large_obj_pos
         ))
 
         obs_dict = dict(
@@ -816,6 +860,12 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
             return np.linalg.norm(curr_pos - goal_pos) < self.drawer_thresh
     
     def obj_pnp_done(self, curr_pos, goal_pos):
+        if curr_pos.size == 0 or goal_pos.size == 0:
+            return 0
+        else:
+            return np.linalg.norm(curr_pos - goal_pos) < self.obj_thresh
+    
+    def obj_slide_done(self, curr_pos, goal_pos):
         if curr_pos.size == 0 or goal_pos.size == 0:
             return 0
         else:
@@ -940,6 +990,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
                 self.obj_pnp = self._objs[0]
                 self.obj_pnp_goal = self.in_drawer_goal
         else:
+            #TODO(Patrick): task_info
             target_location_to_goal = {
                 "top": self.on_top_drawer_goal,
                 "in": self.in_drawer_goal,
@@ -1025,7 +1076,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         ee_yaw = self.get_end_effector_theta()[2]
 
         drawer_handle_pos = self.get_td_handle_pos()
-        drawer_frame_pos = get_drawer_frame_pos(self._top_drawer, physicsClientId=self._uid)
+        #drawer_frame_pos = get_drawer_frame_pos(self._top_drawer, physicsClientId=self._uid)
         #print((drawer_handle_pos - drawer_frame_pos)/np.array([np.sin((self.drawer_yaw+180) * np.pi / 180) , -np.cos((self.drawer_yaw+180) * np.pi / 180), 0]))
         ee_early_stage_goal_pos = drawer_handle_pos - td_offset_coeff * np.array([np.sin((self.drawer_yaw+180) * np.pi / 180) , -np.cos((self.drawer_yaw+180) * np.pi / 180), 0])
 
