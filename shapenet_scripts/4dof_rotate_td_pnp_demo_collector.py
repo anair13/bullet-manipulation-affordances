@@ -39,7 +39,8 @@ kwargs = {
     # 'fixed_drawer_yaw': 24.18556394023222,
     # 'fixed_drawer_pos': np.array([0.50850424, 0.11416014, -0.34]),
     'use_single_obj_idx': 1,
-    'demo_num_ts': args.num_timesteps
+    'demo_num_ts': args.num_timesteps,
+    'large_obj': True,
 }
 if args.downsample:
     kwargs['downsample'] = True
