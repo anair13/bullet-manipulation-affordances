@@ -91,7 +91,7 @@ def collect(id):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--name", type=str)
-    parser.add_argument("--num_trajectories", type=int, default=4000)
+    parser.add_argument("--num_trajectories", type=int, default=8000)
     parser.add_argument("--num_trajectories_per_demo", type=int, default=100)
     parser.add_argument("--num_threads", type=int, default=8)
     parser.add_argument("--num_timesteps", type=int, default=150)

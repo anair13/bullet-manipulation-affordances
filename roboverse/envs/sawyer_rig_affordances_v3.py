@@ -19,7 +19,7 @@ import pkgutil
 
 # Constants
 td_close_coeff = 0.21060003 #0.16298369 #0.20567612 #0.13754340000000412 #0.21567452 #0.13754340000000412
-td_open_coeff = 0.2580868 #0.23500114 #0.29387810000002523
+td_open_coeff = 0.25849998 #0.23500114 #0.29387810000002523
 td_offset_coeff = 0.01
 
 gripper_bounding_x = [.5, .8] #[.46, .84] #[0.4704, 0.8581]
@@ -159,6 +159,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         self.gripper_in_right_position = False
         self.gripper_picked_object = False
         self._large_obj = None
+        self._objs = []
 
         # Demo
         self.demo_num_ts = kwargs.pop('demo_num_ts', None)
@@ -299,7 +300,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
             large_object_quadrant_opts = list(set([0, 1, 2, 3]) - set([self.top_drawer_quadrant]))
             for opt in large_object_quadrant_opts:
                 if np.linalg.norm(np.array(slide_quadrants[opt]) - self.get_drawer_handle_future_pos(td_open_coeff)[:2]) < .1 \
-                    or np.linalg.norm(np.array(slide_quadrants[opt]) - self.get_drawer_handle_future_pos(td_close_coeff)[:2]) < .1 \
+                    or np.linalg.norm(np.array(slide_quadrants[opt]) - self.get_drawer_handle_future_pos(self.get_td_close_coeff())[:2]) < .1 \
                     or np.linalg.norm(np.array(slide_quadrants[opt]) - get_drawer_frame_pos(self._top_drawer, physicsClientId=self._uid)[:2]) < .15 :
                     large_object_quadrant_opts.remove(opt)
             ## Bug where drawer in first quadrant pointing towards camera collides with large object in in fourth quadrant
@@ -759,6 +760,10 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         else:
             self.trajectory_done = False
 
+        ## Null objects
+        self._objs = []
+        self._large_obj = None
+
         # Load Environment
         bullet.reset(physicsClientId=self._uid)
         bullet.setup_headless(self._timestep, solver_iterations=self._solver_iterations, physicsClientId=self._uid)
@@ -835,7 +840,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         return drawer_frame_pos + coeff * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0])
 
     def handle_more_open_than_closed(self):
-        drawer_handle_close_pos = self.get_drawer_handle_future_pos(td_close_coeff)
+        drawer_handle_close_pos = self.get_drawer_handle_future_pos(self.get_td_close_coeff())
         drawer_handle_open_pos = self.get_drawer_handle_future_pos(td_open_coeff)
         drawer_handle_pos = self.get_td_handle_pos()
         return np.linalg.norm(drawer_handle_open_pos - drawer_handle_pos) < np.linalg.norm(drawer_handle_close_pos - drawer_handle_pos)
@@ -845,7 +850,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
     
     def get_position_of_object_idx(self, idx):
         if self.use_single_obj_idx:
-            if idx == self.use_single_obj_idx:
+            if idx == self.use_single_obj_idx and len(self._objs) != 0:
                 pos, _ = get_object_position(self._objs[0], physicsClientId=self._uid)
             else:
                 pos = np.zeros((3,))
@@ -1003,7 +1008,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
 
     def update_drawer_goal(self, task_info=None):
         if self.handle_more_open_than_closed():
-            td_goal_coeff = td_close_coeff
+            td_goal_coeff = self.get_td_close_coeff()
             self.drawer_skill = 'close'
         else:
             td_goal_coeff = td_open_coeff
@@ -1049,13 +1054,19 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
             self.gripper_picked_object = False
             action = np.array([0, 0, 1, 0])
         if done or final_timestep:
-            self.trajectory_done = True
+            if self.trajectory_done == False:
+                self.trajectory_done_first_timestep = self.timestep
+            self.trajectory_done = True 
 
         if self.demo_num_ts:
             offset = self.demo_num_ts - self.timestep
         else:
             offset = 999
-        if self.trajectory_done or offset < 5:
+        if offset < 5:
+            action = np.array([0, 0, 1, 0, -1])
+        elif self.curr_task == 'move_drawer' and self.trajectory_done and self.timestep - self.trajectory_done_first_timestep < 5:
+            action = np.array([0, 0, 0, 0, -1])
+        elif self.trajectory_done:
             action = np.array([0, 0, 1, 0, -1])
         elif self.curr_task == 'move_obj_pnp' and offset < 20 and offset > 5:
             action = np.array([0, 0, -0.25, 0, 1])
@@ -1070,6 +1081,13 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
             return action, done
         return action
     
+    def get_td_close_coeff(self):
+        obj_in_drawer = self.get_drawer_objs()[0]
+        if obj_in_drawer:
+            return 0.21060003
+        else:
+            return 0.18034
+    
     def move_drawer(self, print_stages=False):
         self.grip = -1
         ee_pos = self.get_end_effector_pos()
@@ -1077,7 +1095,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
 
         drawer_handle_pos = self.get_td_handle_pos()
         #drawer_frame_pos = get_drawer_frame_pos(self._top_drawer, physicsClientId=self._uid)
-        #print((drawer_handle_pos - drawer_frame_pos)/np.array([np.sin((self.drawer_yaw+180) * np.pi / 180) , -np.cos((self.drawer_yaw+180) * np.pi / 180), 0]))
+        #print(self.get_td_close_coeff(), (drawer_handle_pos - drawer_frame_pos)/np.array([np.sin((self.drawer_yaw+180) * np.pi / 180) , -np.cos((self.drawer_yaw+180) * np.pi / 180), 0]))
         ee_early_stage_goal_pos = drawer_handle_pos - td_offset_coeff * np.array([np.sin((self.drawer_yaw+180) * np.pi / 180) , -np.cos((self.drawer_yaw+180) * np.pi / 180), 0])
 
         if 0 <= self.drawer_yaw < 90:
@@ -1093,7 +1111,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         gripper_above = ee_pos[2] >= -0.105
         if not self.gripper_has_been_above and gripper_above:
             self.gripper_has_been_above = True
-        c = 0.001 if self.drawer_skill == 'open' else 0.002
+        c = 0.004 if self.drawer_skill == 'open' else 0.02
         done = np.linalg.norm(self.td_goal - drawer_handle_pos) < c
 
         # Stage 1: if gripper is too low, raise it
@@ -1125,7 +1143,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         else:
             if print_stages: print('Stage 5')
             xy_action = self.td_goal - drawer_handle_pos
-            s = 12#10 if self.drawer_skill == 'open' else 0.25
+            s = 9 #12 if self.drawer_skill == 'open' else 12
             action = s*np.array([xy_action[0], xy_action[1], 0, 0])
             # if self.drawer_skill == 'open':
             #     action *= 1.0
