@@ -4,6 +4,7 @@ import skvideo.io
 
 from experiments.kuanfang.iql.drawer_pnp_commands import drawer_pnp_commands
 from experiments.kuanfang.iql.drawer_pnp_single_obj_commands import drawer_pnp_single_obj_commands
+from experiments.kuanfang.iql.drawer_pnp_push_commands import drawer_pnp_push_commands
 
 ts = 150
 num_traj = 100
@@ -13,12 +14,12 @@ env = rv.make(
     "SawyerRigAffordances-v3", 
     gui=True, 
     expl=True, 
-    reset_interval=5, 
+    reset_interval=1, 
     drawer_sliding=False, 
     env_obs_img_dim=196, 
     random_color_p=0.0, 
-    # test_env=True, 
-    # test_env_command=drawer_pnp_single_obj_commands[1],
+    test_env=True, 
+    test_env_command=drawer_pnp_push_commands[0],
     use_single_obj_idx=1,
     #large_obj=False,
     demo_num_ts=ts,

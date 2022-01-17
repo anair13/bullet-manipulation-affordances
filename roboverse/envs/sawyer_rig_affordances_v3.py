@@ -183,7 +183,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         act_high = np.ones(act_dim) * act_bound
         self.action_space = gym.spaces.Box(-act_high, act_high)
 
-        observation_dim = 20
+        observation_dim = 23
         obs_bound = 100
         obs_high = np.ones(observation_dim) * obs_bound
         state_space = gym.spaces.Box(-obs_high, obs_high)
@@ -219,7 +219,9 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         ## Top Drawer
         if self.test_env:
             self.drawer_yaw = self.test_env_command['drawer_yaw']
-            drawer_frame_pos = self.test_env_command['drawer_pos']
+            self.top_drawer_quadrant = self.test_env_command['drawer_quadrant']
+            quadrant = quadrants[self.top_drawer_quadrant]
+            drawer_frame_pos = np.array([quadrant[0], quadrant[1], -.34])
         else:
             self.drawer_yaw = self.fixed_drawer_yaw if self.fixed_drawer_yaw else random.uniform(0, 180)
             if self.fixed_drawer_pos is not None:
@@ -249,12 +251,6 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
 
         self.init_handle_pos = get_drawer_handle_pos(self._top_drawer, physicsClientId=self._uid)[1]
 
-        # print("drawer_yaw: ", self.drawer_yaw)
-        # print("drawer_pos: ", drawer_frame_pos)
-        # print("init objects pos: ", self._init_objs_pos)
-        # print("objs pos: ", [self.get_object_pos(obj) for obj in self._objs])
-        # print("large objs pos: ", self.get_object_pos(self._large_obj))
-
         self._load_table_objs()
 
         # Tray acts as stopper for drawer closing
@@ -282,6 +278,11 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         #     if tries > 5:
         #         break
 
+        # print("drawer_yaw: ", self.drawer_yaw)
+        # print("drawer_pos: ", drawer_frame_pos)
+        # print("objs pos: ", [self.get_object_pos(obj) for obj in self._objs])
+        # print("large objs pos: ", self.get_object_pos(self._large_obj))
+
         self._workspace = bullet.Sensor(self._sawyer,
             xyz_min=self._pos_low, xyz_max=self._pos_high,
             visualize=False, rgba=[0,1,0,.1], physicsClientId=self._uid)
@@ -290,27 +291,8 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
     
     def _load_table_objs(self):
         ## Large Object
-        large_object_within_gripper_range = False
-        tries = 0
-        while(not large_object_within_gripper_range):
-            if tries > 0:
-                p.removeBody(self._large_obj, physicsClientId=self._uid)
-            self._large_obj = None
-
-            large_object_quadrant_opts = list(set([0, 1, 2, 3]) - set([self.top_drawer_quadrant]))
-            for opt in large_object_quadrant_opts:
-                if np.linalg.norm(np.array(slide_quadrants[opt]) - self.get_drawer_handle_future_pos(td_open_coeff)[:2]) < .1 \
-                    or np.linalg.norm(np.array(slide_quadrants[opt]) - self.get_drawer_handle_future_pos(self.get_td_close_coeff())[:2]) < .1 \
-                    or np.linalg.norm(np.array(slide_quadrants[opt]) - get_drawer_frame_pos(self._top_drawer, physicsClientId=self._uid)[:2]) < .15 :
-                    large_object_quadrant_opts.remove(opt)
-            ## Bug where drawer in first quadrant pointing towards camera collides with large object in in fourth quadrant
-            if self.top_drawer_quadrant == 0 and self.drawer_yaw > 60 and self.drawer_yaw < 90 and 3 in large_object_quadrant_opts:
-                large_object_quadrant_opts.remove(3)
-            if len(large_object_quadrant_opts) == 0:
-                large_object_quadrant_opts = list(set([0, 1, 2, 3]) - set([self.top_drawer_quadrant]))
-            self.large_object_quadrant = random.choice(large_object_quadrant_opts)
-
-
+        if self.test_env:
+            self.large_object_quadrant = self.test_env_command['large_object_quadrant']
             quadrant = slide_quadrants[self.large_object_quadrant]
             pos = np.array([quadrant[0], quadrant[1], -0.3525])
             self._large_obj = bullet.objects.cube(
@@ -320,16 +302,47 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
                 scale=.09, 
                 physicsClientId=self._uid
             )
+        else:
+            large_object_within_gripper_range = False
+            tries = 0
+            while(not large_object_within_gripper_range):
+                if tries > 0:
+                    p.removeBody(self._large_obj, physicsClientId=self._uid)
+                self._large_obj = None
 
-            large_object_within_gripper_range = True
-            if not (gripper_bounding_x[0] - .1 <= pos[0] and pos[0] <= gripper_bounding_x[1] + .1 \
-                and gripper_bounding_y[0] - .1 <= pos[1] and pos[1] <= gripper_bounding_y[1] + .1):
-                objects_within_gripper_range = False
-                break
-                        
-            tries += 1
-            if tries > 10:
-                break
+                large_object_quadrant_opts = list(set([0, 1, 2, 3]) - set([self.top_drawer_quadrant]))
+                for opt in large_object_quadrant_opts:
+                    if np.linalg.norm(np.array(slide_quadrants[opt]) - self.get_drawer_handle_future_pos(td_open_coeff)[:2]) < .1 \
+                        or np.linalg.norm(np.array(slide_quadrants[opt]) - self.get_drawer_handle_future_pos(self.get_td_close_coeff())[:2]) < .1 \
+                        or np.linalg.norm(np.array(slide_quadrants[opt]) - get_drawer_frame_pos(self._top_drawer, physicsClientId=self._uid)[:2]) < .15 :
+                        large_object_quadrant_opts.remove(opt)
+                ## Bug where drawer in first quadrant pointing towards camera collides with large object in in fourth quadrant
+                if self.top_drawer_quadrant == 0 and self.drawer_yaw > 60 and self.drawer_yaw < 90 and 3 in large_object_quadrant_opts:
+                    large_object_quadrant_opts.remove(3)
+                if len(large_object_quadrant_opts) == 0:
+                    large_object_quadrant_opts = list(set([0, 1, 2, 3]) - set([self.top_drawer_quadrant]))
+                self.large_object_quadrant = random.choice(large_object_quadrant_opts)
+
+
+                quadrant = slide_quadrants[self.large_object_quadrant]
+                pos = np.array([quadrant[0], quadrant[1], -0.3525])
+                self._large_obj = bullet.objects.cube(
+                    pos=pos, 
+                    quat=deg_to_quat([0, 0, 0]), 
+                    rgba=self.obj_rgbas[0], 
+                    scale=.09, 
+                    physicsClientId=self._uid
+                )
+
+                large_object_within_gripper_range = True
+                if not (gripper_bounding_x[0] - .1 <= pos[0] and pos[0] <= gripper_bounding_x[1] + .1 \
+                    and gripper_bounding_y[0] - .1 <= pos[1] and pos[1] <= gripper_bounding_y[1] + .1):
+                    objects_within_gripper_range = False
+                    break
+                            
+                tries += 1
+                if tries > 10:
+                    break
 
         ## Small Object(s)
         self._objs = []
@@ -688,15 +701,20 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         return reward
 
     def sample_goals(self):
-        #TODO(Patrick): test_env
         if self.test_env:
             task, task_info = self.test_env_command['command_sequence'][self.reset_counter]
             if task == 'move_drawer':
-                self.update_drawer_goal(task_info)
                 self.update_obj_pnp_goal()
+                self.update_drawer_goal(task_info)
+                self.update_obj_slide_goal()
             elif task == 'move_obj_pnp':
-                self.update_drawer_goal()
                 self.update_obj_pnp_goal(task_info)
+                self.update_drawer_goal()
+                self.update_obj_slide_goal()
+            elif task == 'move_obj_slide':
+                self.update_obj_pnp_goal()
+                self.update_drawer_goal()
+                self.update_obj_slide_goal(task_info)
             else:
                 assert False, 'not a valid task'
         else:
@@ -918,19 +936,21 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         return obj_in_drawer, obj_on_drawer, obj_on_large_obj
 
     def update_obj_slide_goal(self, task_info=None):
-        self.large_object_quadrant = self.get_quadrant(self.get_object_pos(self._large_obj))
-        opts = [(self.large_object_quadrant - 1) % 4, (self.large_object_quadrant + 1) % 4]
-        opts = [opt for opt in opts if self.top_drawer_quadrant != opt]
-        for opt in opts:
-            if np.linalg.norm(goal_slide_quadrants[opt][:2] - self.get_td_handle_pos()[:2]) < self.obj_thresh:
-                opts.remove(opt)
-        if len(opts) == 0:
+        if task_info is None:
+            self.large_object_quadrant = self.get_quadrant(self.get_object_pos(self._large_obj))
             opts = [(self.large_object_quadrant - 1) % 4, (self.large_object_quadrant + 1) % 4]
             opts = [opt for opt in opts if self.top_drawer_quadrant != opt]
-        goal_quadrant = goal_slide_quadrants[random.choice(opts)]
+            for opt in opts:
+                if np.linalg.norm(goal_slide_quadrants[opt][:2] - self.get_td_handle_pos()[:2]) < self.obj_thresh:
+                    opts.remove(opt)
+            if len(opts) == 0:
+                opts = [(self.large_object_quadrant - 1) % 4, (self.large_object_quadrant + 1) % 4]
+                opts = [opt for opt in opts if self.top_drawer_quadrant != opt]
+            goal_quadrant = goal_slide_quadrants[random.choice(opts)]
+        else:
+            goal_quadrant = goal_slide_quadrants[task_info['target_quadrant']]
         self.obj_slide = self._large_obj
         self.obj_slide_goal = np.array([goal_quadrant[0], goal_quadrant[1], -0.3525])
-
         #self._debug1 = bullet.objects.button(pos=self.obj_slide_goal)
     
     def get_quadrant(self, pos):
@@ -995,11 +1015,11 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
                 self.obj_pnp = self._objs[0]
                 self.obj_pnp_goal = self.in_drawer_goal
         else:
-            #TODO(Patrick): task_info
             target_location_to_goal = {
                 "top": self.on_top_drawer_goal,
                 "in": self.in_drawer_goal,
                 "out": self.out_of_drawer_goal,
+                "top_obj": self.on_top_large_obj_goal,
             }
             self.obj_pnp = self._objs[task_info['obj_idx']]
             self.obj_pnp_goal = target_location_to_goal[task_info['target_location']]
