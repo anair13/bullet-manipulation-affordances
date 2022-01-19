@@ -91,6 +91,9 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         is_list = type(object_subset) == list
         assert is_set or is_list
 
+        # Version
+        self.version = kwargs.pop('version', 1)
+
         self._reward_type = reward_type
         self._reward_min = reward_min
         self._randomize = randomize
@@ -119,9 +122,14 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         self.default_theta = bullet.deg_to_quat([180, 0, 0])
         self.obs_img_dim = obs_img_dim
 
+        if self.version == 2:
+            pitch = -50
+        else:
+            pitch = -27
+
         self._view_matrix_obs = bullet.get_view_matrix(
             target_pos=[0.7, 0, -0.25], distance=0.425,
-            yaw=90, pitch=-27, roll=0, up_axis_index=2)
+            yaw=90, pitch=pitch, roll=0, up_axis_index=2)
 
         self._projection_matrix_obs = bullet.get_projection_matrix(
             self.obs_img_dim, self.obs_img_dim)
@@ -163,6 +171,8 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
 
         # Demo
         self.demo_num_ts = kwargs.pop('demo_num_ts', None)
+        self.reduce_demo_noise = False
+        self.expert_policy_std_reduced = kwargs.pop('expert_policy_std_reduced', 0.05)
 
         # Anti-aliasing
         self.downsample = kwargs.pop('downsample', False)
@@ -1092,10 +1102,12 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
             action = np.array([0, 0, -0.25, 0, 1])
         else:
             action = np.append(action, [self.grip])
-            action = np.random.normal(action, self.expert_policy_std)
+            std = self.expert_policy_std_reduced if self.reduce_demo_noise else self.expert_policy_std
+            action = np.random.normal(action, std)
 
         action = np.clip(action, a_min=-1, a_max=1)
         self.timestep += 1
+        self.reduce_demo_noise = False
 
         if return_done:
             return action, done
@@ -1256,6 +1268,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
             action = np.array([0.,0., 1., 0.])
             self.grip = 1.
         elif not done_xy:
+            self.reduce_demo_noise = True
             if print_stages: print('Stage 7')
             diff = self.obj_pnp_goal - ee_pos
             action = np.array([diff[0], diff[1], diff[2], 0.])
@@ -1263,6 +1276,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
             action *= 3.0
             self.grip = 1.
         elif not done:
+            self.reduce_demo_noise = True
             if not self.gripper_in_right_position:
                 self.gripper_in_right_position = True
             if print_stages: print('Stage 8')
