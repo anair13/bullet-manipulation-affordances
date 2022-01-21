@@ -19,9 +19,9 @@ from experiments.kuanfang.iql.drawer_pnp_push_commands import drawer_pnp_push_co
 parser = argparse.ArgumentParser()
 # parser.add_argument("--name", type=str)
 parser.add_argument("--num_trajectories", type=int, default=25)
-parser.add_argument("--num_timesteps", type=int, default=150)
-parser.add_argument("--save_last_k_steps", type=int, default=65)
-parser.add_argument("--no_save_last_w_steps", type=int, default=35)
+parser.add_argument("--num_timesteps", type=int, default=60)
+parser.add_argument("--save_last_k_steps", type=int, default=25)
+parser.add_argument("--no_save_last_w_steps", type=int, default=0)
 parser.add_argument("--downsample", action='store_true')
 parser.add_argument("--drawer_sliding", action='store_true')
 parser.add_argument("--test_env_seeds", nargs='+', type=int)
@@ -35,7 +35,7 @@ num_timesteps = args.num_timesteps
 num_trajectories = args.num_trajectories
 save_last_k_steps = args.save_last_k_steps
 no_save_last_w_steps = args.no_save_last_w_steps
-ROOT_PATH = "/2tb/home/patrickhaoy/data/affordances/data/td_pnp_push_v4/"
+ROOT_PATH = "/2tb/home/patrickhaoy/data/affordances/data/env4_td_pnp_push/"
 
 for test_env_seed in args.test_env_seeds:
     data_save_path = ROOT_PATH + "td_pnp_push_goals_seed{}.pkl".format(str(test_env_seed))
@@ -47,13 +47,13 @@ for test_env_seed in args.test_env_seeds:
     kwargs = {
         'drawer_sliding': True if args.drawer_sliding else False,
         'test_env_command': command,
-        'version': 4,
+        #'version': 4,
         # 'gui': True
     }
     if args.downsample:
         kwargs['downsample'] = True
         kwargs['env_obs_img_dim'] = 196
-    env = roboverse.make('SawyerRigAffordances-v3', test_env=True, expl=True, use_single_obj_idx=1, **kwargs)
+    env = roboverse.make('SawyerRigAffordances-v4', test_env=True, expl=True, use_single_obj_idx=1, **kwargs)
 
     ########################################
     # Rollout in Environment and Collect Data.

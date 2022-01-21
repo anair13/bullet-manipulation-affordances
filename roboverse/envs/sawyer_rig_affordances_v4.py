@@ -961,6 +961,7 @@ class SawyerRigAffordancesV4(SawyerBaseEnv):
                     if tries > 25:
                         self.out_of_drawer_goal = np.array([random.uniform(gripper_bounding_x[0] + offset, gripper_bounding_x[1] - offset), random.uniform(gripper_bounding_y[0] + offset, gripper_bounding_y[1] - offset), -0.34])
         self.out_of_drawer_goal[2] = -0.35201056
+        #print(self.out_of_drawer_goal)
 
     def get_drawer_objs(self):
         obj_in_drawer = None
