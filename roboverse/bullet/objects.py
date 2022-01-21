@@ -114,6 +114,12 @@ tray = loader(ASSET_PATH, os.path.join(obj_dir, "box_open_top", "box_open_top.ur
               quat=[0, 0, 0, 1],
               scale=0.175)
 
+tray_teal = loader(ASSET_PATH, os.path.join(obj_dir, "box_open_top", "box_open_top_teal.urdf"),
+              pos=[.6, -0.2, -.35],
+              rgba=[1, 1, 1, 1],
+              quat=[0, 0, 0, 1],
+              scale=0.175)
+
 wall = loader(ASSET_PATH, os.path.join(obj_dir, "wall", "wall.urdf"),
               pos=[.68, 0, -.3],
               rgba=[1, 1, 1, 1],

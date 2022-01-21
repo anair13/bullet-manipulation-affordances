@@ -256,8 +256,8 @@ class SawyerRigAffordancesV4(SawyerBaseEnv):
         self.init_handle_pos = get_drawer_handle_pos(self._top_drawer, physicsClientId=self._uid)[1]
         
         ## Tray above top drawer
-        top_drawer_tray_pos = drawer_frame_pos + np.array([0, 0, .08])
-        self._top_drawer_tray = bullet.objects.tray(quat=quat, pos=top_drawer_tray_pos, scale=0.165, physicsClientId=self._uid)
+        top_drawer_tray_pos = drawer_frame_pos + np.array([0, 0, .06])
+        self._top_drawer_tray = bullet.objects.tray_teal(quat=quat, pos=top_drawer_tray_pos, scale=0.165, physicsClientId=self._uid)
 
         self._load_table_objs()
 
@@ -931,11 +931,11 @@ class SawyerRigAffordancesV4(SawyerBaseEnv):
     def get_obj_pnp_goals(self, task_info=None):
         ## Top Drawer Goal ##
         self.on_top_drawer_goal = np.array(list(get_drawer_frame_pos(self._top_drawer, physicsClientId=self._uid)))
-        self.on_top_drawer_goal[2] = -0.25254727
+        self.on_top_drawer_goal[2] = -0.26951111
         ## Randomly shift goal a little
         self.on_top_drawer_goal = self.on_top_drawer_goal \
-            + random.uniform(-.03, .03) * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0]) \
-            + random.uniform(0, .07) * np.array([np.cos(self.drawer_yaw * np.pi / 180), -np.sin(self.drawer_yaw * np.pi / 180) , 0])
+            + random.uniform(-.03, .02) * np.array([np.sin(self.drawer_yaw * np.pi / 180) , -np.cos(self.drawer_yaw * np.pi / 180), 0]) \
+            + random.uniform(.01, .07) * np.array([np.cos(self.drawer_yaw * np.pi / 180), -np.sin(self.drawer_yaw * np.pi / 180) , 0])
         
         ## In Drawer Goal ##
         self.in_drawer_goal = np.array(list(get_drawer_bottom_pos(self._top_drawer, physicsClientId=self._uid)))
