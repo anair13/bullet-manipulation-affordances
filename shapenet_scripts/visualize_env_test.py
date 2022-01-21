@@ -11,34 +11,33 @@ num_traj = 100
 
 #obs_img_dim=196, 
 env = rv.make(
-    "SawyerRigAffordances-v3", 
+    "SawyerRigAffordances-v4", 
     gui=True, 
     expl=True, 
-    reset_interval=1, 
+    reset_interval=5, 
     drawer_sliding=False, 
     env_obs_img_dim=196, 
     random_color_p=0.0, 
-    test_env=True, 
-    test_env_command=drawer_pnp_push_commands[5],
+    # test_env=True, 
+    # test_env_command=drawer_pnp_push_commands[8],
     use_single_obj_idx=1,
     #large_obj=False,
     demo_num_ts=ts,
-    version=2,
+    # version=5,
     #move_gripper_task=True,
     # use_trash=True,
     # fixed_drawer_yaw=24.18556394023222,
     # fixed_drawer_position=np.array([0.50850424, 0.11416014, -0.34]),
-    expert_policy_std=.15,
-    expert_policy_std_reduced=.05,
-    downsample=True,
+    expert_policy_std=.2,
+    #downsample=True,
 )
 
-save_video = True
+save_video = False
 
 if save_video:
     video_save_path = '/2tb/home/patrickhaoy/data/test/'
-    num_traj = 10
-    observations = np.zeros((num_traj*ts, 48, 48, 3))
+    num_traj = 5
+    observations = np.zeros((num_traj*ts, 196, 196, 3))
 
 tasks_success = dict()
 tasks_count = dict()
@@ -81,5 +80,5 @@ print(f"Overall success rate: {total_successes/num_traj}, count: {num_traj} \n")
 if save_video:
     writer = skvideo.io.FFmpegWriter(video_save_path + "debug.mp4")
     for i in range(num_traj*ts):
-            writer.writeFrame(observations[i, :, :, :])
+        writer.writeFrame(observations[i, :, :, :])
     writer.close()

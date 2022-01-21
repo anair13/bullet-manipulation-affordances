@@ -18,9 +18,10 @@ from experiments.kuanfang.iql.drawer_pnp_push_commands import drawer_pnp_push_co
 ########################################
 parser = argparse.ArgumentParser()
 # parser.add_argument("--name", type=str)
-parser.add_argument("--num_trajectories", type=int, default=50)
+parser.add_argument("--num_trajectories", type=int, default=25)
 parser.add_argument("--num_timesteps", type=int, default=150)
-parser.add_argument("--save_last_k_steps", type=int, default=50)
+parser.add_argument("--save_last_k_steps", type=int, default=65)
+parser.add_argument("--no_save_last_w_steps", type=int, default=35)
 parser.add_argument("--downsample", action='store_true')
 parser.add_argument("--drawer_sliding", action='store_true')
 parser.add_argument("--test_env_seeds", nargs='+', type=int)
@@ -33,7 +34,8 @@ args = parser.parse_args()
 num_timesteps = args.num_timesteps
 num_trajectories = args.num_trajectories
 save_last_k_steps = args.save_last_k_steps
-ROOT_PATH = "/2tb/home/patrickhaoy/data/affordances/data/td_pnp_push_v2/"
+no_save_last_w_steps = args.no_save_last_w_steps
+ROOT_PATH = "/2tb/home/patrickhaoy/data/affordances/data/td_pnp_push_v4/"
 
 for test_env_seed in args.test_env_seeds:
     data_save_path = ROOT_PATH + "td_pnp_push_goals_seed{}.pkl".format(str(test_env_seed))
@@ -45,7 +47,7 @@ for test_env_seed in args.test_env_seeds:
     kwargs = {
         'drawer_sliding': True if args.drawer_sliding else False,
         'test_env_command': command,
-        #'version': 2,
+        'version': 4,
         # 'gui': True
     }
     if args.downsample:
@@ -59,12 +61,13 @@ for test_env_seed in args.test_env_seeds:
     obs_dim = env.observation_space.spaces['state_achieved_goal'].low.size
     imlength = env.obs_img_dim * env.obs_img_dim * 3
 
+    num_transitions = num_trajectories * (save_last_k_steps - no_save_last_w_steps) 
     dataset = {
-        'initial_latent_state': np.zeros((num_trajectories * save_last_k_steps, 720), dtype=np.float),
-        'latent_desired_goal': np.zeros((num_trajectories * save_last_k_steps, 720), dtype=np.float),
-        'state_desired_goal': np.zeros((num_trajectories * save_last_k_steps, obs_dim), dtype=np.float),
-        'image_desired_goal': np.zeros((num_trajectories * save_last_k_steps, imlength), dtype=np.float),
-        'initial_image_observation': np.zeros((num_trajectories * save_last_k_steps, imlength), dtype=np.float),
+        'initial_latent_state': np.zeros((num_transitions, 720), dtype=np.float),
+        'latent_desired_goal': np.zeros((num_transitions, 720), dtype=np.float),
+        'state_desired_goal': np.zeros((num_transitions, obs_dim), dtype=np.float),
+        'image_desired_goal': np.zeros((num_transitions, imlength), dtype=np.float),
+        'initial_image_observation': np.zeros((num_transitions, imlength), dtype=np.float),
     }
 
     for i in tqdm(range(num_trajectories)):
@@ -93,13 +96,13 @@ for test_env_seed in args.test_env_seeds:
                 obs, reward, _, info = env.step(action)
                 skill_is_done = skill_is_done or done
 
-                if j + save_last_k_steps >= num_timesteps:
+                if j + save_last_k_steps >= num_timesteps and j < num_timesteps - no_save_last_w_steps:
                     img = np.uint8(env.render_obs()).transpose() / 255.0
 
                     j_o = j - (num_timesteps - save_last_k_steps)
-                    dataset['state_desired_goal'][i * save_last_k_steps + j_o] = obs['state_achieved_goal']
-                    dataset['image_desired_goal'][i * save_last_k_steps + j_o] = img.flatten()
-                    dataset['initial_image_observation'][i * save_last_k_steps + j_o] = init_img.flatten()
+                    dataset['state_desired_goal'][i * (save_last_k_steps - no_save_last_w_steps) + j_o] = obs['state_achieved_goal']
+                    dataset['image_desired_goal'][i * (save_last_k_steps - no_save_last_w_steps) + j_o] = img.flatten()
+                    dataset['initial_image_observation'][i * (save_last_k_steps - no_save_last_w_steps) + j_o] = init_img.flatten()
             is_done = is_done and skill_is_done
 
     file = open(data_save_path, 'wb')

@@ -12,7 +12,7 @@ from multiprocess import Pool
 import gc
 
 def collect(id):
-    state_env = roboverse.make('SawyerRigAffordances-v3', random_color_p=0.0, expl=True, reset_interval=args.reset_interval, **kwargs)
+    state_env = roboverse.make('SawyerRigAffordances-v4', random_color_p=0.0, expl=True, reset_interval=args.reset_interval, **kwargs)
 
     # FOR TESTING, TURN COLORS OFF
     imsize = state_env.obs_img_dim
@@ -117,14 +117,13 @@ if __name__ == '__main__':
 
     kwargs = {
         'drawer_sliding': args.drawer_sliding,
-        'expert_policy_std': 0.05,
         # 'fixed_drawer_yaw': 24.18556394023222,
         # 'fixed_drawer_pos': np.array([0.50850424, 0.11416014, -0.34]),
         'use_single_obj_idx': 1,
         'demo_num_ts': args.num_timesteps,
-        'expert_policy_std': .15,
-        'expert_policy_std_reduced': .05,
-        #'version': 2,
+        'expert_policy_std': .2,
+        # 'expert_policy_std_reduced': .05,
+        # 'version': 4,
     }
     if args.downsample:
         kwargs['downsample'] = True
