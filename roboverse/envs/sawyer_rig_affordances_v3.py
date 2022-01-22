@@ -149,7 +149,6 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         self.reset_counter = self.reset_interval-1
         self.expl = kwargs.pop('expl', False)
         self.trajectory_done = False
-        self.final_timestep = False
         self.drawer_sliding = kwargs.pop('drawer_sliding', False)
 
         # Drawer
@@ -1113,9 +1112,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         #self.get_reward(print_stats=True)
         return reset_obs
 
-    def get_demo_action(self, first_timestep=False, final_timestep=False, return_done=False):
-        self.final_timestep = final_timestep
-        
+    def get_demo_action(self, first_timestep=False, return_done=False):
         if self.drawer_sliding:
             self.td_goal = self.get_drawer_handle_future_pos(self.td_goal_coeff) # update goal in case drawer slides
 
@@ -1132,7 +1129,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
             self.gripper_in_right_position = False
             self.gripper_picked_object = False
             action = np.array([0, 0, 1, 0])
-        if done or final_timestep:
+        if done:
             if self.trajectory_done == False:
                 self.trajectory_done_first_timestep = self.timestep
             self.trajectory_done = True 
@@ -1143,6 +1140,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
             offset = 999
         if offset < 5:
             action = np.array([0, 0, 1, 0, -1])
+            self.trajectory_done = True
         elif self.curr_task == 'move_drawer' and self.trajectory_done and self.timestep - self.trajectory_done_first_timestep < 5:
             action = np.array([0, 0, 0, 0, -1])
         elif self.trajectory_done:
@@ -1232,7 +1230,7 @@ class SawyerRigAffordancesV3(SawyerBaseEnv):
         if done:
             action = np.array([0, 0, 1, 0])
 
-        if self.final_timestep and print_stages: print("drawer_yaw: ", self.drawer_yaw, ", drawer_frame_pos: ", get_drawer_frame_pos(self._top_drawer, physicsClientId=self._uid))
+        if print_stages: print("drawer_yaw: ", self.drawer_yaw, ", drawer_frame_pos: ", get_drawer_frame_pos(self._top_drawer, physicsClientId=self._uid))
         return action, done
 
     def move_obj_pnp(self, print_stages=False):
