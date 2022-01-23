@@ -6,20 +6,20 @@ from experiments.kuanfang.iql.drawer_pnp_commands import drawer_pnp_commands
 from experiments.kuanfang.iql.drawer_pnp_single_obj_commands import drawer_pnp_single_obj_commands
 from experiments.kuanfang.iql.drawer_pnp_push_commands import drawer_pnp_push_commands
 
-ts = 150
+ts = 75
 num_traj = 100
 
 #obs_img_dim=196, 
 env = rv.make(
-    "SawyerRigAffordances-v4", 
+    "SawyerRigAffordances-v5", 
     gui=True, 
     expl=True, 
-    reset_interval=1, 
+    reset_interval=4, 
     drawer_sliding=False, 
     env_obs_img_dim=196, 
     random_color_p=0.0, 
-    test_env=True, 
-    test_env_command=drawer_pnp_push_commands[9],
+    # test_env=True, 
+    # test_env_command=drawer_pnp_push_commands[3],
     use_single_obj_idx=1,
     #large_obj=False,
     demo_num_ts=ts,
@@ -28,7 +28,7 @@ env = rv.make(
     # use_trash=True,
     # fixed_drawer_yaw=24.18556394023222,
     # fixed_drawer_position=np.array([0.50850424, 0.11416014, -0.34]),
-    expert_policy_std=.2,
+    expert_policy_std=.05,
     #downsample=True,
 )
 
@@ -36,7 +36,7 @@ save_video = False
 
 if save_video:
     video_save_path = '/2tb/home/patrickhaoy/data/test/'
-    num_traj = 5
+    num_traj = 12
     observations = np.zeros((num_traj*ts, 196, 196, 3))
 
 tasks_success = dict()
@@ -50,7 +50,7 @@ for i in range(num_traj):
         if save_video:
             img = np.uint8(env.render_obs())
             observations[i*ts + t, :] = img
-        action, done = env.get_demo_action(first_timestep=(t == 0), final_timestep=(t == ts - 1), return_done=True)
+        action, done = env.get_demo_action(first_timestep=(t == 0), return_done=True)
         next_observation, reward, _, info = env.step(action)
         if done and not is_done:
             is_done = True 

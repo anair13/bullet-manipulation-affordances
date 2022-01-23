@@ -12,7 +12,7 @@ from multiprocess import Pool
 import gc
 
 def collect(id):
-    state_env = roboverse.make('SawyerRigAffordances-v4', random_color_p=0.0, expl=True, reset_interval=args.reset_interval, **kwargs)
+    state_env = roboverse.make('SawyerRigAffordances-v5', random_color_p=0.0, expl=True, reset_interval=args.reset_interval, **kwargs)
 
     # FOR TESTING, TURN COLORS OFF
     imsize = state_env.obs_img_dim
@@ -59,7 +59,7 @@ def collect(id):
 
             observation = env.get_observation()
 
-            action = env.get_demo_action(first_timestep=(i == 0), final_timestep=(i == args.num_timesteps-1))
+            action = env.get_demo_action(first_timestep=(i == 0))
             next_observation, reward, done, info = env.step(action)
 
             trajectory['observations'].append(observation)
@@ -91,11 +91,11 @@ def collect(id):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--name", type=str)
-    parser.add_argument("--num_trajectories", type=int, default=4000)
-    parser.add_argument("--num_trajectories_per_demo", type=int, default=100)
+    parser.add_argument("--num_trajectories", type=int, default=8000)
+    parser.add_argument("--num_trajectories_per_demo", type=int, default=200)
     parser.add_argument("--num_threads", type=int, default=8)
-    parser.add_argument("--num_timesteps", type=int, default=150)
-    parser.add_argument("--reset_interval", type=int, default=5)
+    parser.add_argument("--num_timesteps", type=int, default=75)
+    parser.add_argument("--reset_interval", type=int, default=4)
     parser.add_argument("--downsample", action='store_true')
     parser.add_argument("--drawer_sliding", action='store_true')
     parser.add_argument("--demo_offset", type=int, default=0)
@@ -121,24 +121,11 @@ if __name__ == '__main__':
         # 'fixed_drawer_pos': np.array([0.50850424, 0.11416014, -0.34]),
         'use_single_obj_idx': 1,
         'demo_num_ts': args.num_timesteps,
-        'expert_policy_std': .2,
-        # 'expert_policy_std_reduced': .05,
-        # 'version': 4,
+        'expert_policy_std': .05,
     }
     if args.downsample:
         kwargs['downsample'] = True
         kwargs['env_obs_img_dim'] = 196
-
-    skill_to_id: {
-        'open_drawer': 0,
-        'close_drawer': 1,
-        'pnp_to_top_of_drawer': 2,
-        'pnp_to_inside_drawer': 3,
-        'pnp_to_outside_drawer': 4,
-        'pnp_to_top_of_large_obj': 5,
-        'push': 6,
-        'move_gripper': 7,
-    }
 
     assert args.num_trajectories % args.num_trajectories_per_demo == 0
 

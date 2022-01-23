@@ -107,6 +107,17 @@ spam = loader(ASSET_PATH, os.path.join(obj_dir, "spam", "spam.urdf"),
               #deg=[90,0,0], #90,0,-90
               quat=[0, 0, 0, 1],
               scale=0.015) #0.0175 #0.25
+
+cylinder = loader(ASSET_PATH, os.path.join(obj_dir, "cylinder", "cylinder.urdf"),
+              pos=[.75, -.4, -.3],
+              quat=[0, 0, 0, 1],
+              scale=0.03) #0.05
+
+cylinder_tall = loader(ASSET_PATH, os.path.join(obj_dir, "cylinder", "cylinder_tall.urdf"),
+              pos=[.75, -.4, -.3],
+              quat=[0, 0, 0, 1],
+              scale=0.03) #0.05
+
 ## tray
 tray = loader(ASSET_PATH, os.path.join(obj_dir, "box_open_top", "box_open_top.urdf"),
               pos=[.6, -0.2, -.35],
@@ -127,6 +138,12 @@ wall = loader(ASSET_PATH, os.path.join(obj_dir, "wall", "wall.urdf"),
               scale=0.8)
 
 wall_narrow = loader(ASSET_PATH, os.path.join(obj_dir, "wall", "wall_narrow.urdf"),
+              pos=[.68, 0, -.3],
+              rgba=[1, 1, 1, 1],
+              deg=[0, 0, 0],
+              scale=0.8)
+
+wall_narrow_r = loader(ASSET_PATH, os.path.join(obj_dir, "wall", "wall_narrow_r.urdf"),
               pos=[.68, 0, -.3],
               rgba=[1, 1, 1, 1],
               deg=[0, 0, 0],
