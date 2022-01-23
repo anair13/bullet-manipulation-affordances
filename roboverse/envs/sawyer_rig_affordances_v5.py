@@ -108,8 +108,14 @@ class SawyerRigAffordancesV5(SawyerBaseEnv):
         self.DoF = DoF
         self.test_env = test_env
         self.test_env_command = kwargs.pop('test_env_command', None)
+        self.use_multiple_goals = kwargs.pop('use_multiple_goals', False)
         if self.test_env:
             assert self.test_env_command
+            self.test_env_commands = kwargs.pop('test_env_commands', None)
+            if self.test_env_commands is not None:
+                self.test_env_seed = list(self.test_env_commands.keys())[0]
+            else:
+                self.test_env_seed = None
 
         self.obj_thresh = 0.08
         self.drawer_thresh = 0.065
@@ -804,6 +810,10 @@ class SawyerRigAffordancesV5(SawyerBaseEnv):
         return task
 
     def reset(self):
+        if self.use_multiple_goals:
+            self.test_env_seed = np.random.choice(list(self.test_env_commands.keys()))
+            self.test_env_command = self.test_env_commands[self.test_env_seed]
+
         if self.grasp_constraint is not None:
             p.removeConstraint(self.grasp_constraint, physicsClientId=self._uid)
             self.grasp_constraint = None
