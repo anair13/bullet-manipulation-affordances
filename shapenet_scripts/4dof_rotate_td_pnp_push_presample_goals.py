@@ -18,9 +18,9 @@ from experiments.kuanfang.iql.drawer_pnp_push_commands import drawer_pnp_push_co
 ########################################
 parser = argparse.ArgumentParser()
 # parser.add_argument("--name", type=str)
-parser.add_argument("--num_trajectories", type=int, default=25)
-parser.add_argument("--num_timesteps", type=int, default=60)
-parser.add_argument("--save_last_k_steps", type=int, default=25)
+parser.add_argument("--num_trajectories", type=int, default=5)
+parser.add_argument("--num_timesteps", type=int, default=85)
+parser.add_argument("--save_last_k_steps", type=int, default=15)
 parser.add_argument("--no_save_last_w_steps", type=int, default=0)
 parser.add_argument("--downsample", action='store_true')
 parser.add_argument("--drawer_sliding", action='store_true')
@@ -35,7 +35,7 @@ num_timesteps = args.num_timesteps
 num_trajectories = args.num_trajectories
 save_last_k_steps = args.save_last_k_steps
 no_save_last_w_steps = args.no_save_last_w_steps
-ROOT_PATH = "/2tb/home/patrickhaoy/data/affordances/data/env4_td_pnp_push/"
+ROOT_PATH = "/2tb/home/patrickhaoy/data/affordances/data/env5_td_pnp_push/"
 
 for test_env_seed in args.test_env_seeds:
     data_save_path = ROOT_PATH + "td_pnp_push_goals_seed{}.pkl".format(str(test_env_seed))
@@ -53,7 +53,7 @@ for test_env_seed in args.test_env_seeds:
     if args.downsample:
         kwargs['downsample'] = True
         kwargs['env_obs_img_dim'] = 196
-    env = roboverse.make('SawyerRigAffordances-v4', test_env=True, expl=True, use_single_obj_idx=1, **kwargs)
+    env = roboverse.make('SawyerRigAffordances-v5', test_env=True, expl=True, use_single_obj_idx=1, **kwargs)
 
     ########################################
     # Rollout in Environment and Collect Data.
@@ -83,7 +83,7 @@ for test_env_seed in args.test_env_seeds:
             for j0 in range(len(command['command_sequence']) - 1):
                 skill_is_done = False
                 for j1 in range(num_timesteps):
-                    action, done = env.get_demo_action(first_timestep=(j1 == 0), final_timestep=(j1 == num_timesteps - 1), return_done=True)
+                    action, done = env.get_demo_action(first_timestep=(j1 == 0), return_done=True)
                     obs, reward, _, info = env.step(action)
                     skill_is_done = skill_is_done or done
                 is_done = is_done and skill_is_done
@@ -92,7 +92,7 @@ for test_env_seed in args.test_env_seeds:
             ## Final skill
             skill_is_done = False
             for j in range(num_timesteps):
-                action, done = env.get_demo_action(first_timestep=(j == 0), final_timestep=(j == num_timesteps - 1), return_done=True)
+                action, done = env.get_demo_action(first_timestep=(j == 0), return_done=True)
                 obs, reward, _, info = env.step(action)
                 skill_is_done = skill_is_done or done
 

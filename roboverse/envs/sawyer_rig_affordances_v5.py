@@ -284,9 +284,9 @@ class SawyerRigAffordancesV5(SawyerBaseEnv):
         #         break
 
         # print("drawer_yaw: ", self.drawer_yaw)
-        # print("drawer_pos: ", drawer_frame_pos)
+        # print("drawer_quad: ", self.top_drawer_quadrant)
         # print("objs pos: ", [self.get_object_pos(obj) for obj in self._objs])
-        # print("large objs pos: ", self.get_object_pos(self._large_obj))
+        # print("large objs quad: ", self.large_object_quadrant)
 
         self._workspace = bullet.Sensor(self._sawyer,
             xyz_min=self._pos_low, xyz_max=self._pos_high,
@@ -500,7 +500,7 @@ class SawyerRigAffordancesV5(SawyerBaseEnv):
         elif self.curr_task == 'move_obj_slide':
             skill_id = 5
         elif self.curr_task == 'move_obj_pnp':
-            if self.obj_pnp_skill == 'on':
+            if self.obj_pnp_skill == 'top':
                 skill_id = 2
             elif self.obj_pnp_skill == 'in':
                 skill_id = 3
@@ -1045,7 +1045,7 @@ class SawyerRigAffordancesV5(SawyerBaseEnv):
 
             possible_goals = [
                 (self.in_drawer_goal, list(obj_to_be_in_drawer), "in"),
-                (self.on_top_drawer_goal, list(obj_to_be_on_drawer), "on"),
+                (self.on_top_drawer_goal, list(obj_to_be_on_drawer), "top"),
                 (self.out_of_drawer_goal, list(obj_to_be_out_of_drawer), "out")
             ]
 
@@ -1060,7 +1060,7 @@ class SawyerRigAffordancesV5(SawyerBaseEnv):
             if self.obj_pnp is None:
                 self.obj_pnp = self._objs[0]
                 self.obj_pnp_goal = self.on_top_drawer_goal
-                self.obj_pnp_skill = "on"
+                self.obj_pnp_skill = "top"
         else:
             target_location_to_goal = {
                 "top": self.on_top_drawer_goal,
@@ -1069,6 +1069,7 @@ class SawyerRigAffordancesV5(SawyerBaseEnv):
             }
             self.obj_pnp = self._objs[task_info['obj_idx']]
             self.obj_pnp_goal = target_location_to_goal[task_info['target_location']]
+            self.obj_pnp_skill = task_info['target_location']
 
         # self._debug1 = bullet.objects.button(pos=self.obj_pnp_goal)  
 

@@ -14,12 +14,12 @@ env = rv.make(
     "SawyerRigAffordances-v5", 
     gui=True, 
     expl=True, 
-    reset_interval=4, 
+    reset_interval=3, 
     drawer_sliding=False, 
     env_obs_img_dim=196, 
     random_color_p=0.0, 
-    # test_env=True, 
-    # test_env_command=drawer_pnp_push_commands[3],
+    test_env=True, 
+    test_env_command=drawer_pnp_push_commands[17],
     use_single_obj_idx=1,
     #large_obj=False,
     demo_num_ts=ts,
@@ -36,7 +36,7 @@ save_video = False
 
 if save_video:
     video_save_path = '/2tb/home/patrickhaoy/data/test/'
-    num_traj = 12
+    num_traj = 2
     observations = np.zeros((num_traj*ts, 196, 196, 3))
 
 tasks_success = dict()
