@@ -1020,7 +1020,7 @@ class SawyerRigAffordancesV5(SawyerBaseEnv):
         if curr_pos.size == 0 or goal_pos.size == 0:
             return 0
         else:
-            return np.linalg.norm(curr_pos - goal_pos) < self.obj_thresh
+            return self.get_quadrant(curr_pos) == self.get_quadrant(goal_pos)
 
     def get_obj_pnp_goals(self, task_info=None):
         ## Top Drawer Goal ##
@@ -1281,7 +1281,7 @@ class SawyerRigAffordancesV5(SawyerBaseEnv):
         gripper_above = ee_pos[2] >= -0.105
         if not self.gripper_has_been_above and gripper_above:
             self.gripper_has_been_above = True
-        done = np.linalg.norm(self.td_goal - drawer_handle_pos) < .001
+        done = np.linalg.norm(self.td_goal - drawer_handle_pos) < .01
 
         # Stage 1: if gripper is too low, raise it
         if not self.gripper_in_right_position and not self.gripper_has_been_above:
