@@ -1014,7 +1014,7 @@ class SawyerRigAffordancesV5(SawyerBaseEnv):
         if curr_pos.size == 0 or goal_pos.size == 0:
             return 0
         else:
-            return np.linalg.norm(curr_pos - goal_pos) < self.obj_thresh
+            return np.linalg.norm(curr_pos - goal_pos) < self.obj_thresh and np.linalg.norm(curr_pos[2] - goal_pos[2]) < 0.005
 
     def obj_slide_done(self, curr_pos, goal_pos):
         if curr_pos.size == 0 or goal_pos.size == 0:
