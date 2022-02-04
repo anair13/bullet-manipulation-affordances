@@ -125,6 +125,7 @@ class SawyerRigAffordancesV5(SawyerBaseEnv):
                 self.test_env_seed = None
 
         self.obj_thresh = 0.08
+        self.obj_thresh_loose = 0.17
         self.drawer_thresh = 0.065
         self.gripper_pos_thresh = 0.08
         self.gripper_rot_thresh = 10
@@ -599,6 +600,28 @@ class SawyerRigAffordancesV5(SawyerBaseEnv):
             curr_pos_2 = curr_state[17:20]
             goal_pos_2 = goal_state[17:20]
             success = int(self.obj_pnp_done(curr_pos_2, goal_pos_2))
+        elif key == 'obj_pnp_loose':
+            curr_pos_0 = curr_state[11:14]
+            goal_pos_0 = goal_state[11:14]
+            curr_pos_1 = curr_state[14:17]
+            goal_pos_1 = goal_state[14:17]
+            curr_pos_2 = curr_state[17:20]
+            goal_pos_2 = goal_state[17:20]
+            success = int(self.obj_pnp_done_loose(curr_pos_0, goal_pos_0)) \
+                and int(self.obj_pnp_done_loose(curr_pos_1, goal_pos_1)) \
+                and int(self.obj_pnp_done_loose(curr_pos_2, goal_pos_2))
+        elif key == 'obj_pnp_0_loose':
+            curr_pos_0 = curr_state[11:14]
+            goal_pos_0 = goal_state[11:14]
+            success = int(self.obj_pnp_done_loose(curr_pos_0, goal_pos_0))
+        elif key == 'obj_pnp_1_loose':
+            curr_pos_1 = curr_state[14:17]
+            goal_pos_1 = goal_state[14:17]
+            success = int(self.obj_pnp_done_loose(curr_pos_1, goal_pos_1))
+        elif key == 'obj_pnp_2_loose':
+            curr_pos_2 = curr_state[17:20]
+            goal_pos_2 = goal_state[17:20]
+            success = int(self.obj_pnp_done_loose(curr_pos_2, goal_pos_2))
         elif key == 'obj_slide':
             curr_pos = curr_state[20:23]
             goal_pos = goal_state[20:23]
@@ -706,10 +729,13 @@ class SawyerRigAffordancesV5(SawyerBaseEnv):
         state_key = "state_observation"
         goal_key = "state_desired_goal"
 
-        success_keys = ["overall", "top_drawer", "obj_pnp", "obj_pnp_0", "obj_pnp_1", "obj_pnp_2", "obj_slide", "gripper_position",
-                        "gripper_rotation_roll", "gripper_rotation_pitch", "gripper_rotation_yaw", "gripper_rotation", "gripper"]
-        distance_keys = ["top_drawer", "obj_pnp", "obj_pnp_0", "obj_pnp_1", "obj_pnp_2", "obj_slide", "gripper_position",
-                         "gripper_rotation_roll", "gripper_rotation_pitch", "gripper_rotation_yaw", "gripper_rotation"]
+        success_keys = ["overall", "top_drawer", "obj_slide", 
+                        "obj_pnp", "obj_pnp_0", "obj_pnp_1", "obj_pnp_2", 
+                        "obj_pnp_loose", "obj_pnp_0_loose", "obj_pnp_1_loose", "obj_pnp_2_loose", 
+                        "gripper_position", "gripper_rotation_roll", "gripper_rotation_pitch", "gripper_rotation_yaw", "gripper_rotation", "gripper"]
+        distance_keys = ["top_drawer", "obj_slide", 
+                        "obj_pnp", "obj_pnp_0", "obj_pnp_1", "obj_pnp_2", 
+                        "gripper_position", "gripper_rotation_roll", "gripper_rotation_pitch", "gripper_rotation_yaw", "gripper_rotation"]
 
         dict_of_success_lists = {}
         for k in success_keys:
@@ -1013,15 +1039,14 @@ class SawyerRigAffordancesV5(SawyerBaseEnv):
     def obj_pnp_done(self, curr_pos, goal_pos):
         if curr_pos.size == 0 or goal_pos.size == 0:
             return 0
-
-        obj_distance_cond = np.linalg.norm(curr_pos - goal_pos) < self.obj_thresh and np.linalg.norm(curr_pos[2] - goal_pos[2]) < 0.01
-        if np.linalg.norm(goal_pos - self.out_of_drawer_goal) < 0.01:
-            out_of_drawer_cond = np.linalg.norm(curr_pos - self.on_top_drawer_goal) > self.obj_thresh \
-                and np.linalg.norm(curr_pos - self.in_drawer_goal) > self.obj_thresh \
-                and np.linalg.norm(curr_pos[2] - goal_pos[2]) < 0.01
-            return obj_distance_cond or out_of_drawer_cond
         else:
-            return obj_distance_cond
+            return np.linalg.norm(curr_pos - goal_pos) < self.obj_thresh and np.linalg.norm(curr_pos[2] - goal_pos[2]) < 0.01
+    
+    def obj_pnp_done_loose(self, curr_pos, goal_pos):
+        if curr_pos.size == 0 or goal_pos.size == 0:
+            return 0
+        else:
+            return np.linalg.norm(curr_pos - goal_pos) < self.obj_thresh_loose and np.linalg.norm(curr_pos[2] - goal_pos[2]) < 0.01
 
     def obj_slide_done(self, curr_pos, goal_pos):
         if curr_pos.size == 0 or goal_pos.size == 0:
