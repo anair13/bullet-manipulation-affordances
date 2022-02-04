@@ -7,7 +7,7 @@ import skvideo.io
 from rlkit.experimental.kuanfang.envs.drawer_pnp_push_commands import drawer_pnp_push_commands
 
 ts = 75
-num_traj = 100
+num_traj = 1
 
 #obs_img_dim=196, 
 env = rv.make(
@@ -19,7 +19,7 @@ env = rv.make(
     env_obs_img_dim=196, 
     random_color_p=0.0, 
     test_env=True, 
-    test_env_command=drawer_pnp_push_commands[22],
+    test_env_command=drawer_pnp_push_commands[1],
     use_single_obj_idx=1,
     #large_obj=False,
     demo_num_ts=ts,

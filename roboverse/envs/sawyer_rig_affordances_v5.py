@@ -1498,7 +1498,7 @@ class SawyerRigAffordancesV5(SawyerBaseEnv):
         #     goal_ee_yaw = direction - 180
         # else:
         #     goal_ee_yaw = direction - 360
-        ee_early_stage_goal_pos = obj_pos - 0.06 * \
+        ee_early_stage_goal_pos = obj_pos - 0.11 * \
             np.array([np.sin(direction * np.pi / 180), -
                      np.cos(direction * np.pi / 180), 0])
 
