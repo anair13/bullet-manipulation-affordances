@@ -518,12 +518,12 @@ class SawyerRigAffordancesV5(SawyerBaseEnv):
             self.grasp_constraint = None
 
         ## For debugging success metric
-        goal = self.get_observation()['state_achieved_goal']
-        rep = np.array([0.70258289, 0.13128127, -0.35201093])
-        goal[14] = rep[0]
-        goal[15] = rep[1]
-        goal[16] = rep[2]
-        print(self.get_success_metric(np.array(self.get_observation()['state_achieved_goal']), np.array(goal), key='obj_pnp_1'))
+        # goal = self.get_observation()['state_achieved_goal']
+        # rep = np.array([0.70258289, 0.13128127, -0.35201093])
+        # goal[14] = rep[0]
+        # goal[15] = rep[1]
+        # goal[16] = rep[2]
+        # print(self.get_success_metric(np.array(self.get_observation()['state_achieved_goal']), np.array(goal), key='obj_pnp_1'))
 
         # Update position and theta
         pos += delta_pos * self._action_scale
