@@ -1014,14 +1014,14 @@ class SawyerRigAffordancesV5(SawyerBaseEnv):
         if curr_pos.size == 0 or goal_pos.size == 0:
             return 0
 
-        cond1 = np.linalg.norm(curr_pos - goal_pos) < self.obj_thresh and np.linalg.norm(curr_pos[2] - goal_pos[2]) < 0.01
+        obj_distance_cond = np.linalg.norm(curr_pos - goal_pos) < self.obj_thresh and np.linalg.norm(curr_pos[2] - goal_pos[2]) < 0.01
         if np.linalg.norm(goal_pos - self.out_of_drawer_goal) < 0.01:
-            cond2 = np.linalg.norm(curr_pos - self.on_top_drawer_goal) > self.obj_thresh \
+            out_of_drawer_cond = np.linalg.norm(curr_pos - self.on_top_drawer_goal) > self.obj_thresh \
                 and np.linalg.norm(curr_pos - self.in_drawer_goal) > self.obj_thresh \
                 and np.linalg.norm(curr_pos[2] - goal_pos[2]) < 0.01
-            return cond1 or cond2
+            return obj_distance_cond or out_of_drawer_cond
         else:
-            return cond1
+            return obj_distance_cond
 
     def obj_slide_done(self, curr_pos, goal_pos):
         if curr_pos.size == 0 or goal_pos.size == 0:
