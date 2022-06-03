@@ -15,6 +15,10 @@ class SawyerGraspOneEnv(SawyerBaseEnv):
                  success_threshold=0.05,
                  transpose_image=False,
                  invisible_robot=False,
+                 state_key=None,
+                 image_key=None,
+                 depth_key=None,
+                 normalize_image=True,
                  *args,
                  **kwargs
                  ):
@@ -50,6 +54,11 @@ class SawyerGraspOneEnv(SawyerBaseEnv):
         self._projection_matrix_obs = bullet.get_projection_matrix(
             self.obs_img_dim, self.obs_img_dim)
 
+        self._state_key = state_key or 'state'
+        self._image_key = image_key or 'image'
+        self._depth_key = depth_key or 'depth'
+        self._normalize_image = normalize_image
+
         self.dt = 0.1
         super().__init__(*args, **kwargs)
 
@@ -73,31 +82,43 @@ class SawyerGraspOneEnv(SawyerBaseEnv):
             obs_bound = 100
             obs_high = np.ones(observation_dim) * obs_bound
             state_space = gym.spaces.Box(-obs_high, obs_high)
-            spaces = {'image': img_space, 'state': state_space}
+            spaces = {self._image_key: img_space, self._state_key: state_space}
+            self.observation_space = gym.spaces.Dict(spaces)
+        elif self._observation_mode == 'pixels_depth' or self._observation_mode == 'pixels_depth_debug':
+            img_space = gym.spaces.Box(0, 1, (self.image_length,), dtype=np.float32)
+            depth_space = gym.spaces.Box(0, 1, (self.image_length,), dtype=np.float32)
+            if self._observation_mode == 'pixels_depth':
+                observation_dim = 7
+            elif self._observation_mode == 'pixels_depth_debug':
+                observation_dim = 11
+            obs_bound = 100
+            obs_high = np.ones(observation_dim) * obs_bound
+            state_space = gym.spaces.Box(-obs_high, obs_high)
+            spaces = {self._image_key: img_space, self._state_key: state_space, self._depth_key: depth_space}
             self.observation_space = gym.spaces.Dict(spaces)
         else:
             raise NotImplementedError
 
     def _load_meshes(self):
         if self._invisible_robot:
-            self._sawyer = bullet.objects.sawyer_invisible()
+            self._sawyer = bullet.objects.sawyer_invisible(physicsClientId=self._uid)
         else:
-            self._sawyer = bullet.objects.sawyer_finger_visual_only()
-        self._table = bullet.objects.table()
+            self._sawyer = bullet.objects.sawyer_finger_visual_only(physicsClientId=self._uid)
+        self._table = bullet.objects.table(physicsClientId=self._uid)
         self._objects = {}
         self._sensors = {}
         self._workspace = bullet.Sensor(self._sawyer,
             xyz_min=self._pos_low, xyz_max=self._pos_high,
-            visualize=False, rgba=[0,1,0,.1])
+            visualize=False, rgba=[0,1,0,.1], physicsClientId=self._uid)
         self._end_effector = bullet.get_index_by_attribute(
-            self._sawyer, 'link_name', 'gripper_site')
+            self._sawyer, 'link_name', 'gripper_site', physicsClientId=self._uid)
         if self._randomize:
             object_position = np.random.uniform(
                 low=self._object_position_low, high=self._object_position_high)
         else:
             object_position = self._fixed_object_position
         self._objects = {
-            'lego': bullet.objects.lego(pos=object_position)
+            'lego': bullet.objects.lego(pos=object_position, physicsClientId=self._uid)
         }
 
         # Allow the objects to settle down after they are dropped in sim
@@ -106,7 +127,7 @@ class SawyerGraspOneEnv(SawyerBaseEnv):
 
     def step(self, *action):
         delta_pos, gripper = self._format_action(*action)
-        pos = bullet.get_link_state(self._sawyer, self._end_effector, 'pos')
+        pos = bullet.get_link_state(self._sawyer, self._end_effector, 'pos', physicsClientId=self._uid)
         pos += delta_pos * self._action_scale
         pos = np.clip(pos, self._pos_low, self._pos_high)
 
@@ -117,7 +138,7 @@ class SawyerGraspOneEnv(SawyerBaseEnv):
         info = self.get_info()
         reward = self.get_reward(info)
         done = self.get_termination(observation)
-        self._prev_pos = bullet.get_link_state(self._sawyer, self._end_effector, 'pos')
+        self._prev_pos = bullet.get_link_state(self._sawyer, self._end_effector, 'pos', physicsClientId=self._uid)
         return observation, reward, done, info
 
     def get_info(self):
@@ -139,13 +160,23 @@ class SawyerGraspOneEnv(SawyerBaseEnv):
 
         return info
 
-    def render_obs(self):
+    def render_obs(self, include=None):
         img, depth, segmentation = bullet.render(
             self.obs_img_dim, self.obs_img_dim, self._view_matrix_obs,
-            self._projection_matrix_obs, shadow=0, gaussian_width=0)
+            self._projection_matrix_obs, shadow=0, gaussian_width=0, physicsClientId=self._uid)
         if self._transpose_image:
             img = np.transpose(img, (2, 0, 1))
-        return img
+        if include is None:
+            return img
+        output = []
+        for key in include:
+            if key == "image":
+                output.append(img)
+            elif key == "depth":
+                output.append(depth)
+            elif key == 'segmentation':
+                output.append(segmentation)
+        return tuple(output)
 
     def get_reward(self, info):
 
@@ -165,9 +196,9 @@ class SawyerGraspOneEnv(SawyerBaseEnv):
 
     def get_observation(self):
         left_tip_pos = bullet.get_link_state(
-            self._sawyer, 'right_gripper_l_finger_joint', keys='pos')
+            self._sawyer, 'right_gripper_l_finger_joint', keys='pos', physicsClientId=self._uid)
         right_tip_pos = bullet.get_link_state(
-            self._sawyer, 'right_gripper_r_finger_joint', keys='pos')
+            self._sawyer, 'right_gripper_r_finger_joint', keys='pos', physicsClientId=self._uid)
         left_tip_pos = np.asarray(left_tip_pos)
         right_tip_pos = np.asarray(right_tip_pos)
 
@@ -177,7 +208,7 @@ class SawyerGraspOneEnv(SawyerBaseEnv):
 
         if self._observation_mode == 'state':
             object_info = bullet.get_body_info(self._objects['lego'],
-                                               quat_to_deg=False)
+                                               quat_to_deg=False, physicsClientId=self._uid)
             object_pos = object_info['pos']
             object_theta = object_info['theta']
             observation = np.concatenate(
@@ -185,27 +216,57 @@ class SawyerGraspOneEnv(SawyerBaseEnv):
                  object_pos, object_theta))
         elif self._observation_mode == 'pixels':
             image_observation = self.render_obs()
-            image_observation = np.float32(image_observation.flatten())/255.0
+            if self._normalize_image:
+                image_observation = np.float32(image_observation.flatten())/255.0
             # image_observation = np.zeros((48, 48, 3), dtype=np.uint8)
             observation = {
-                'state': np.concatenate(
+                self._state_key: np.concatenate(
                     (end_effector_pos, gripper_tips_distance)),
-                'image': image_observation
+                self._image_key: image_observation
             }
         elif self._observation_mode == 'pixels_debug':
             # This mode passes in all the true state information + images
             image_observation = self.render_obs()
-            image_observation = np.float32(image_observation.flatten())/255.0
+            if self._normalize_image:
+                image_observation = np.float32(image_observation.flatten())/255.0
             object_info = bullet.get_body_info(self._objects['lego'],
-                                               quat_to_deg=False)
+                                               quat_to_deg=False, physicsClientId=self._uid)
             object_pos = object_info['pos']
             object_theta = object_info['theta']
             state = np.concatenate(
                 (end_effector_pos,gripper_tips_distance,
                  object_pos, object_theta))
             observation = {
-                'state': state,
-                'image': image_observation,
+                self._state_key: state,
+                self._image_key: image_observation,
+            }
+        elif self._observation_mode == 'pixels_depth':
+            image_observation, depth_observation = self.render_obs(include=['image', 'depth'])
+            if self._normalize_image:
+                image_observation = np.float32(image_observation.flatten())/255.0
+            # image_observation = np.zeros((48, 48, 3), dtype=np.uint8)
+            observation = {
+                self._state_key: np.concatenate(
+                    (end_effector_pos, gripper_tips_distance)),
+                self._image_key: image_observation,
+                self._depth_key: depth_observation
+            }
+        elif self._observation_mode == 'pixels_depth_debug':
+            # This mode passes in all the true state information + images
+            image_observation, depth_observation = self.render_obs(include=['image', 'depth'])
+            if self._normalize_image:
+                image_observation = np.float32(image_observation.flatten())/255.0
+            object_info = bullet.get_body_info(self._objects['lego'],
+                                               quat_to_deg=False, physicsClientId=self._uid)
+            object_pos = object_info['pos']
+            object_theta = object_info['theta']
+            state = np.concatenate(
+                (end_effector_pos,gripper_tips_distance,
+                 object_pos, object_theta))
+            observation = {
+                self._state_key: state,
+                self._image_key: image_observation,
+                self._depth_key: depth_observation
             }
         else:
             raise NotImplementedError

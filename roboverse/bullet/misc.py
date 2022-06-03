@@ -284,9 +284,9 @@ def bbox_intersecting(bbox_1, bbox_2):
     return intersecting
 
 
-def get_midpoint(body, weights=[.5, .5, .5]):
+def get_midpoint(body, weights=[.5, .5, .5], physicsClientId=0):
     weights = np.array(weights)
-    xyz_min, xyz_max = get_bbox(body)
+    xyz_min, xyz_max = get_bbox(body, physicsClientId=physicsClientId)
     midpoint = xyz_max * weights + xyz_min * (1 - weights)
     return midpoint
 

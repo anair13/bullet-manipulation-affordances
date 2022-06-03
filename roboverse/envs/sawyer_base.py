@@ -19,6 +19,7 @@ class SawyerBaseEnv(gym.Env, Serializable):
                  pos_init=[0.6, 0.0, -0.2], #[0.5, 0, 0]
                  pos_low=[0.6,-0.2,-.36], #[.4,-.6,-.36]
                  pos_high=[0.8,0.2,-0.2], #[1,.4,.25]
+                 randomize_reset=False,
                  max_force=1000.,
                  visualize=True,
                  ):
@@ -32,6 +33,9 @@ class SawyerBaseEnv(gym.Env, Serializable):
         self._pos_init = pos_init
         self._pos_low = pos_low
         self._pos_high = pos_high
+        self._reset_low = pos_low
+        self._reset_high = pos_high
+        self._randomize_reset = randomize_reset
         self._max_force = max_force
         self._visualize = visualize
         self._id = 'SawyerBaseEnv'
@@ -90,6 +94,8 @@ class SawyerBaseEnv(gym.Env, Serializable):
 
 
         self._prev_pos = np.array(self._pos_init)
+        if self._randomize_reset:
+            self._prev_pos = np.random.uniform(self._reset_low, self._reset_high)
         bullet.position_control(self._sawyer, self._end_effector, self._prev_pos, self.theta, physicsClientId=self._uid)
         # self._reset_hook(self)
         for _ in range(3):
